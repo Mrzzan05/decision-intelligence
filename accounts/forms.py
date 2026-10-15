@@ -34,4 +34,4 @@ class UserProfileForm(forms.ModelForm):
 class UserPreferenceForm(forms.ModelForm):
     class Meta:
         model = UserPreference
-        fields = ("preferred_category", "default_budget", "dark_mode")
+        fields = ("preferred_category", "default_budget", "theme_mode")

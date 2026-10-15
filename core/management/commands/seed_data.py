@@ -32,6 +32,7 @@ class Command(BaseCommand):
             )
             reviewers.append(u)
 
+        # 1. Category: Laptops & Ultrabooks
         laptop_schema = [
             {"key": "cpu", "label": "Processor", "unit": "", "higher_is_better": None, "group": "Performance"},
             {"key": "gpu", "label": "Graphics Card", "unit": "", "higher_is_better": None, "group": "Performance"},
@@ -74,15 +75,8 @@ class Command(BaseCommand):
                 "brand": "Lenovo",
                 "name": "LOQ 15IRH8",
                 "price": Decimal("950.00"),
-                "description": "Engineering and gaming laptop with dedicated RTX 4050 GPU.",
-                "specs": {
-                    "cpu": "Intel Core i7-13620H",
-                    "gpu": "NVIDIA RTX 4050 6GB",
-                    "ram_gb": 16,
-                    "storage_gb": 512,
-                    "battery_wh": 60,
-                    "weight_kg": 2.4,
-                },
+                "description": "Engineering and gaming laptop with dedicated RTX 4050 GPU and dual-fan cooling.",
+                "specs": {"cpu": "Intel Core i7-13620H", "gpu": "NVIDIA RTX 4050 6GB", "ram_gb": 16, "storage_gb": 512, "battery_wh": 60, "weight_kg": 2.4},
             },
         )
         thinkpad, _ = Product.objects.update_or_create(
@@ -92,15 +86,8 @@ class Command(BaseCommand):
                 "brand": "Lenovo",
                 "name": "ThinkPad X1 Carbon Gen 11",
                 "price": Decimal("1650.00"),
-                "description": "Ultra-light executive notebook built for mobility and typing.",
-                "specs": {
-                    "cpu": "Intel Core i7-1355U",
-                    "gpu": "Intel Iris Xe",
-                    "ram_gb": 16,
-                    "storage_gb": 512,
-                    "battery_wh": 57,
-                    "weight_kg": 1.12,
-                },
+                "description": "Ultra-light carbon-fiber executive notebook built for mobility and typing comfort.",
+                "specs": {"cpu": "Intel Core i7-1355U", "gpu": "Intel Iris Xe", "ram_gb": 16, "storage_gb": 512, "battery_wh": 57, "weight_kg": 1.12},
             },
         )
         macbook, _ = Product.objects.update_or_create(
@@ -110,19 +97,11 @@ class Command(BaseCommand):
                 "brand": "Apple",
                 "name": "MacBook Air 15 (M3)",
                 "price": Decimal("1299.00"),
-                "description": "Fanless Apple Silicon notebook with 18-hour battery endurance.",
-                "specs": {
-                    "cpu": "Apple M3 (8-Core)",
-                    "gpu": "10-Core Apple GPU",
-                    "ram_gb": 16,
-                    "storage_gb": 512,
-                    "battery_wh": 66,
-                    "weight_kg": 1.51,
-                },
+                "description": "Fanless Apple Silicon notebook with 18-hour battery endurance and silent operation.",
+                "specs": {"cpu": "Apple M3 (8-Core)", "gpu": "10-Core Apple GPU", "ram_gb": 16, "storage_gb": 512, "battery_wh": 66, "weight_kg": 1.51},
             },
         )
 
-        # 5 Reviewer distributions per laptop (including mixed opinions on Fan Acoustics for LOQ)
         loq_distributions = [
             {c_gpu: 9, c_bat: 5, c_therm: 9, c_port: 5, c_fan_noise: 9},
             {c_gpu: 9, c_bat: 4, c_therm: 8, c_port: 6, c_fan_noise: 4},
@@ -132,9 +111,8 @@ class Command(BaseCommand):
         ]
         for idx, score_map in enumerate(loq_distributions):
             rev, _ = Review.objects.update_or_create(
-                user=reviewers[idx],
-                product=loq,
-                defaults={"overall_rating": 9, "pros": "Strong RTX 4050 performance", "cons": "Modest battery"},
+                user=reviewers[idx], product=loq,
+                defaults={"overall_rating": 9, "pros": "Strong RTX 4050 CUDA performance", "cons": "Modest unplugged battery life"},
             )
             for crit, val in score_map.items():
                 ReviewScore.objects.update_or_create(review=rev, criteria=crit, defaults={"score": val})
@@ -148,9 +126,8 @@ class Command(BaseCommand):
         ]
         for idx, score_map in enumerate(thinkpad_distributions):
             rev, _ = Review.objects.update_or_create(
-                user=reviewers[idx],
-                product=thinkpad,
-                defaults={"overall_rating": 8, "pros": "Featherlight chassis", "cons": "Integrated graphics only"},
+                user=reviewers[idx], product=thinkpad,
+                defaults={"overall_rating": 8, "pros": "Featherlight 1.12kg chassis and best keyboard", "cons": "Integrated GPU only"},
             )
             for crit, val in score_map.items():
                 ReviewScore.objects.update_or_create(review=rev, criteria=crit, defaults={"score": val})
@@ -164,9 +141,89 @@ class Command(BaseCommand):
         ]
         for idx, score_map in enumerate(macbook_distributions):
             rev, _ = Review.objects.update_or_create(
-                user=reviewers[idx],
-                product=macbook,
-                defaults={"overall_rating": 9, "pros": "Silent M3 and 18h battery", "cons": "No RAM upgrades"},
+                user=reviewers[idx], product=macbook,
+                defaults={"overall_rating": 9, "pros": "Silent fanless M3 and 18h battery", "cons": "Non-upgradeable memory"},
+            )
+            for crit, val in score_map.items():
+                ReviewScore.objects.update_or_create(review=rev, criteria=crit, defaults={"score": val})
+
+        # 2. Category: Flagship Smartphones
+        phone_schema = [
+            {"key": "chip", "label": "SoC Processor", "unit": "", "higher_is_better": None, "group": "Hardware"},
+            {"key": "ram_gb", "label": "RAM", "unit": "GB", "higher_is_better": True, "group": "Hardware"},
+            {"key": "storage_gb", "label": "Storage", "unit": "GB", "higher_is_better": True, "group": "Hardware"},
+            {"key": "battery_mah", "label": "Battery Capacity", "unit": "mAh", "higher_is_better": True, "group": "Endurance"},
+            {"key": "weight_g", "label": "Weight", "unit": "g", "higher_is_better": False, "group": "Design"},
+        ]
+
+        phones, _ = Category.objects.update_or_create(
+            slug="smartphones",
+            defaults={
+                "name": "Flagship Smartphones",
+                "spec_schema": phone_schema,
+                "presets": {
+                    "photographer": {"label": "Photographer", "weights": {"Camera System": 10, "Display Quality": 8, "Battery Endurance": 5}},
+                    "power": {"label": "Heavy User", "weights": {"Battery Endurance": 10, "Display Quality": 9, "Camera System": 5}},
+                    "daily": {"label": "Daily Driver", "weights": {"Camera System": 7, "Battery Endurance": 8, "Display Quality": 8}},
+                },
+            },
+        )
+        p_cam, _ = Criteria.objects.get_or_create(category=phones, name="Camera System")
+        p_lowlight, _ = Criteria.objects.update_or_create(
+            category=phones, name="Low-Light Photography", defaults={"parent": p_cam}
+        )
+        p_bat, _ = Criteria.objects.get_or_create(category=phones, name="Battery Endurance")
+        p_disp, _ = Criteria.objects.get_or_create(category=phones, name="Display Quality")
+
+        s24, _ = Product.objects.update_or_create(
+            slug="galaxy-s24-ultra",
+            defaults={
+                "category": phones,
+                "brand": "Samsung",
+                "name": "Galaxy S24 Ultra",
+                "price": Decimal("1199.00"),
+                "description": "Titanium flagship with anti-reflective 120Hz AMOLED display and S-Pen.",
+                "specs": {"chip": "Snapdragon 8 Gen 3", "ram_gb": 12, "storage_gb": 256, "battery_mah": 5000, "weight_g": 232},
+            },
+        )
+        pixel, _ = Product.objects.update_or_create(
+            slug="pixel-9-pro",
+            defaults={
+                "category": phones,
+                "brand": "Google",
+                "name": "Pixel 9 Pro",
+                "price": Decimal("999.00"),
+                "description": "Compact flagship with class-leading computational photography and Tensor G4.",
+                "specs": {"chip": "Google Tensor G4", "ram_gb": 16, "storage_gb": 256, "battery_mah": 4700, "weight_g": 199},
+            },
+        )
+
+        s24_distributions = [
+            {p_cam: 9, p_lowlight: 9, p_bat: 9, p_disp: 10},
+            {p_cam: 9, p_lowlight: 4, p_bat: 9, p_disp: 10},
+            {p_cam: 8, p_lowlight: 8, p_bat: 10, p_disp: 10},
+            {p_cam: 9, p_lowlight: 4, p_bat: 9, p_disp: 9},
+            {p_cam: 9, p_lowlight: 9, p_bat: 9, p_disp: 10},
+        ]
+        for idx, score_map in enumerate(s24_distributions):
+            rev, _ = Review.objects.update_or_create(
+                user=reviewers[idx], product=s24,
+                defaults={"overall_rating": 9, "pros": "Best anti-reflective display and battery", "cons": "Mixed low-light shutter speed on moving subjects"},
+            )
+            for crit, val in score_map.items():
+                ReviewScore.objects.update_or_create(review=rev, criteria=crit, defaults={"score": val})
+
+        pixel_distributions = [
+            {p_cam: 10, p_lowlight: 10, p_bat: 6, p_disp: 9},
+            {p_cam: 10, p_lowlight: 9, p_bat: 6, p_disp: 9},
+            {p_cam: 9, p_lowlight: 10, p_bat: 5, p_disp: 9},
+            {p_cam: 10, p_lowlight: 10, p_bat: 6, p_disp: 9},
+            {p_cam: 10, p_lowlight: 9, p_bat: 6, p_disp: 10},
+        ]
+        for idx, score_map in enumerate(pixel_distributions):
+            rev, _ = Review.objects.update_or_create(
+                user=reviewers[idx], product=pixel,
+                defaults={"overall_rating": 9, "pros": "Unmatched night sight and skin tones", "cons": "Modest battery endurance under heavy 5G use"},
             )
             for crit, val in score_map.items():
                 ReviewScore.objects.update_or_create(review=rev, criteria=crit, defaults={"score": val})
@@ -188,4 +245,4 @@ class Command(BaseCommand):
             },
         )
 
-        self.stdout.write(self.style.SUCCESS("✅ Seeded normalized schema, 5-reviewer consensus, and journal data!"))
+        self.stdout.write(self.style.SUCCESS("✅ Seeded all categories with normalized schema, presets, and 5-reviewer consensus!"))

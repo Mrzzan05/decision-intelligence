@@ -1,6 +1,6 @@
 ﻿{% load static %}
 <!DOCTYPE html>
-<html lang="en" data-theme="{% if user.is_authenticated and user.preference.dark_mode %}dark{% else %}light{% endif %}">
+<html lang="en" data-theme="{% if user.is_authenticated and user.preference.theme_mode %}{{ user.preference.theme_mode }}{% else %}system{% endif %}" data-auth="{% if user.is_authenticated %}true{% else %}false{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,46 +8,131 @@
     <link rel="stylesheet" href="{% static 'css/main.css' %}">
     <script>
         (function() {
-            const savedTheme = localStorage.getItem("di_theme");
-            if (savedTheme) {
-                document.documentElement.setAttribute("data-theme", savedTheme);
+            const root = document.documentElement;
+            const isAuth = root.getAttribute("data-auth") === "true";
+            if (!isAuth) {
+                const guestTheme = localStorage.getItem("di_theme_mode");
+                if (guestTheme) root.setAttribute("data-theme", guestTheme);
             }
         })();
-        function toggleTheme() {
+
+        function setThemeMode(mode) {
             const root = document.documentElement;
-            const next = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
-            root.setAttribute("data-theme", next);
-            localStorage.setItem("di_theme", next);
+            root.setAttribute("data-theme", mode);
+            localStorage.setItem("di_theme_mode", mode);
+
+            if (root.getAttribute("data-auth") === "true") {
+                const csrfToken = document.querySelector("[name=csrfmiddlewaretoken]")?.value || "";
+                const body = new URLSearchParams({ theme_mode: mode });
+                fetch("{% url 'accounts:update_theme' %}", {
+                    method: "POST",
+                    headers: { "X-CSRFToken": csrfToken, "Content-Type": "application/x-www-form-urlencoded" },
+                    body: body.toString()
+                });
+            }
         }
     </script>
 </head>
 <body>
+    <form style="display:none;">{% csrf_token %}</form>
     <nav class="navbar">
         <a href="{% url 'home' %}" class="brand">⚡ Decision Intelligence</a>
         <div class="nav-links">
             <a href="{% url 'home' %}">Categories</a>
-            <a href="{% url 'catalog:product_search' %}">Search & Filter</a>
+            <a href="{% url 'catalog:product_search' %}">Search &amp; Filter</a>
             <a href="{% url 'catalog:product_compare' %}">Compare</a>
             {% if user.is_authenticated %}
-                <a href="{% url 'dashboard' %}">Analytics Dashboard</a>
+                <a href="{% url 'dashboard' %}">Dashboard</a>
                 <a href="{% url 'journal_list' %}">Journal</a>
-                <a href="{% url 'accounts:profile' %}">{{ user.email }}</a>
+                <a href="{% url 'accounts:profile' %}">{{ user.display_name }}</a>
                 <form method="post" action="{% url 'accounts:logout' %}" style="display:inline;">
                     {% csrf_token %}
-                    <button type="submit" class="btn btn-outline" style="color:#fff; border-color:#475569; padding:0.3rem 0.7rem;">Sign Out</button>
+                    <button type="submit" class="btn btn-outline btn-sm" style="color:#f8fafc;">Sign Out</button>
                 </form>
             {% else %}
                 <a href="{% url 'accounts:login' %}">Sign In</a>
-                <a href="{% url 'accounts:signup' %}" class="btn" style="padding:0.35rem 0.85rem;">Sign Up</a>
+                <a href="{% url 'accounts:signup' %}" class="btn btn-sm">Sign Up</a>
             {% endif %}
-            <button type="button" onclick="toggleTheme()" class="btn btn-outline" style="color:#fff; border-color:#475569; padding:0.3rem 0.65rem;" title="Toggle Dark/Light Theme">
-                🌓 Theme
-            </button>
+
+            <label for="theme_switcher" style="font-size:var(--text-xs); color:#cbd5e1;">Theme:</label>
+            <select id="theme_switcher" class="theme-Select" onchange="setThemeMode(this.value)">
+                <option value="system">System</option>
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+            </select>
         </div>
     </nav>
 
     <main class="container">
+        <!-- Floating Compare Tray -->
+        <div id="compare_tray" class="compare-tray">
+            <div>
+                <strong>⚖️ Comparison Tray (<span id="tray_count">0</span>/4):</strong>
+                <span id="tray_items" class="spec-pills" style="display:inline-flex; margin-left:0.5rem;"></span>
+            </div>
+            <div style="display:flex; gap:0.5rem;">
+                <button type="button" class="btn btn-outline btn-sm" onclick="clearCompareTray()">Clear</button>
+                <a id="tray_launch_link" href="{% url 'catalog:product_compare' %}" class="btn btn-sm">Compare Now →</a>
+            </div>
+        </div>
+
         {% block content %}{% endblock %}
     </main>
+
+    <script>
+        // Sync theme dropdown initial state
+        const switcher = document.getElementById("theme_switcher");
+        if (switcher) {
+            switcher.value = document.documentElement.getAttribute("data-theme") || "system";
+        }
+
+        // Compare Tray Logic (Same-category, max 4 products)
+        function getTray() {
+            try { return JSON.parse(localStorage.getItem("di_compare_tray") || "[]"); }
+            catch { return []; }
+        }
+        function saveTray(items) {
+            localStorage.setItem("di_compare_tray", JSON.stringify(items));
+            renderCompareTray();
+        }
+        function toggleCompareTrayItem(slug, name, categorySlug) {
+            let items = getTray();
+            const exists = items.find(i => i.slug === slug);
+            if (exists) {
+                items = items.filter(i => i.slug !== slug);
+            } else {
+                if (items.length > 0 && items[0].category !== categorySlug) {
+                    if (!confirm("Comparison works within the same category. Replace current tray with " + name + "?")) return;
+                    items = [];
+                }
+                if (items.length >= 4) {
+                    alert("You can compare up to 4 products at a time.");
+                    return;
+                }
+                items.push({ slug, name, category: categorySlug });
+            }
+            saveTray(items);
+        }
+        function clearCompareTray() {
+            saveTray([]);
+        }
+        function renderCompareTray() {
+            const items = getTray();
+            const tray = document.getElementById("compare_tray");
+            if (!tray) return;
+            if (items.length === 0) {
+                tray.style.display = "none";
+                return;
+            }
+            tray.style.display = "flex";
+            document.getElementById("tray_count").innerText = items.length;
+            document.getElementById("tray_items").innerHTML = items
+                .map(i => `<span class="spec-pill">${i.name}</span>`)
+                .join("");
+            const query = items.map(i => "p=" + encodeURIComponent(i.slug)).join("&");
+            document.getElementById("tray_launch_link").href = "{% url 'catalog:product_compare' %}?" + query;
+        }
+        renderCompareTray();
+    </script>
 </body>
 </html>

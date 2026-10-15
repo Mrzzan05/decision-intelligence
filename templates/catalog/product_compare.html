@@ -1,60 +1,129 @@
 ﻿{% extends "base.html" %}
 
-{% block title %}Compare Products{% endblock %}
+{% block title %}Side-by-Side Product Comparison{% endblock %}
 
 {% block content %}
-<h1>Same-Category Product Comparison</h1>
+<h1>Apple &amp; Baymard-Style Product Comparison</h1>
+<p class="text-muted" style="margin-bottom:var(--space-4);">
+    Compare up to 4 products within the same category. Prioritized by your criteria weights, without declaring an arbitrary overall winner.
+</p>
+
 {% if matrix.cross_category_warning %}
-    <div class="card">
-        <strong>Note:</strong> Only products from the same category ({{ matrix.category.name }}) can be compared side-by-side. Cross-category items were excluded.
+    <div class="alert alert-warning">
+        <strong>Same-Category Rule:</strong> Only products belonging to <strong>{{ matrix.category.name }}</strong> are shown below. Cross-category items were excluded.
     </div>
 {% endif %}
 
 <form method="get" class="card">
     <div class="spec-pills">
         {% for prod in all_products %}
-            <label class="spec-pill">
+            <label class="spec-pill" style="cursor:pointer;">
                 <input type="checkbox" name="p" value="{{ prod.slug }}" {% if prod.slug in selected_slugs %}checked{% endif %}>
-                {{ prod.brand }} {{ prod.name }} ({{ prod.category.name }} - &dollar;{{ prod.price }})
+                {{ prod.brand }} {{ prod.name }} ({{ prod.category.name }} &middot; &dollar;{{ prod.price }})
             </label>
         {% endfor %}
     </div>
-    <button type="submit" class="btn">Compare Selected (Max 4)</button>
+    <button type="submit" class="btn btn-sm" style="margin-top:var(--space-2);">⚖️ Update Comparison (Max 4)</button>
 </form>
 
 {% if compared_products %}
-    <div class="card">
-        <p>Identical specifications detected: <strong>{{ matrix.identical_spec_count }}</strong></p>
-        <table>
+    <div class="flex-between" style="margin: var(--space-4) 0;">
+        <div>
+            {% if matrix.identical_spec_count > 0 %}
+                <span class="badge badge-primary" id="identical_status_badge">
+                    {{ matrix.identical_spec_count }} specification{{ matrix.identical_spec_count|pluralize }} identical across selected models
+                </span>
+            {% endif %}
+        </div>
+        {% if matrix.identical_spec_count > 0 %}
+            <button type="button" id="toggle_identical_btn" class="btn btn-outline btn-sm" onclick="toggleIdenticalRows()">
+                👁️ Hide {{ matrix.identical_spec_count }} Identical Specification{{ matrix.identical_spec_count|pluralize }}
+            </button>
+        {% endif %}
+    </div>
+
+    <div class="compare-mobile-scroll">
+        <table class="compare-table" id="comparison_table">
             <thead>
                 <tr>
-                    <th>Metric / Specification</th>
+                    <th style="min-width: 210px;">Dimension / Specification</th>
                     {% for prod in compared_products %}
-                        <th>{{ prod.brand }} {{ prod.name }} (&dollar;{{ prod.price }})</th>
+                        <th>
+                            <a href="{% url 'catalog:product_detail' prod.slug %}" style="font-size:var(--text-base);">
+                                {{ prod.brand }} {{ prod.name }}
+                            </a>
+                            <div class="text-muted" style="font-size:var(--text-xs); font-weight:400;">
+                                &dollar;{{ prod.price }} &middot;
+                                {% if prod.has_sufficient_data %}
+                                    <strong>{{ prod.match_percentage }}% Match</strong>
+                                {% else %}
+                                    Insufficient data
+                                {% endif %}
+                            </div>
+                        </th>
                     {% endfor %}
                 </tr>
             </thead>
             <tbody>
+                <!-- Section 1: Important Criteria for You -->
+                <tr class="compare-section-row">
+                    <td colspan="{{ compared_products|length|add:1 }}">🎯 Important Criteria for You (Priority Weight &ge; 6)</td>
+                </tr>
+                {% for row in matrix.important_criteria_rows %}
+                    <tr>
+                        <td>
+                            <strong>{{ row.criteria.name }}</strong>
+                            <div class="text-muted" style="font-size:var(--text-xs);">Your Weight: {{ row.weight|floatformat:0 }}/10</div>
+                        </td>
+                        {% for cell in row.cells %}
+                            <td class="{% if cell.is_winner %}winner-cell{% endif %}">
+                                {% if cell.score is not None %}
+                                    {{ cell.score }}/10 {% if cell.is_winner %}★{% endif %}
+                                {% else %}
+                                    Insufficient data
+                                {% endif %}
+                            </td>
+                        {% endfor %}
+                    </tr>
+                {% endfor %}
+
+                <!-- Section 2: Consensus Smart Summary -->
+                <tr class="compare-section-row">
+                    <td colspan="{{ compared_products|length|add:1 }}">💡 Community Consensus ({{ matrix.category.name }})</td>
+                </tr>
                 <tr>
-                    <td><strong>Match to Your Needs</strong></td>
+                    <td><strong>Key Pros / Cons</strong></td>
                     {% for prod in compared_products %}
                         <td>
-                            {% if prod.has_sufficient_data %}
-                                <strong>{{ prod.match_percentage }}% Match</strong> ({{ prod.weighted_score }}/10)
-                            {% else %}
-                                Insufficient data
-                            {% endif %}
+                            <ul class="consensus-list">
+                                {% for item in prod.smart_summary.pros %}
+                                    <li class="consensus-pro">+ {{ item }}</li>
+                                {% endfor %}
+                                {% for item in prod.smart_summary.mixed %}
+                                    <li class="consensus-mixed">&plusmn; {{ item }}</li>
+                                {% endfor %}
+                                {% for item in prod.smart_summary.cons %}
+                                    <li class="consensus-con">&minus; {{ item }}</li>
+                                {% endfor %}
+                            </ul>
                         </td>
                     {% endfor %}
                 </tr>
+
+                <!-- Section 3: Normalized Technical Specifications -->
                 {% for group in matrix.spec_groups %}
+                    <tr class="compare-section-row">
+                        <td colspan="{{ compared_products|length|add:1 }}">🔧 {{ group.group_name }} Specifications</td>
+                    </tr>
                     {% for row in group.rows %}
                         <tr class="{% if row.is_identical %}spec-identical-row{% endif %}">
-                            <td>{{ row.label }}</td>
+                            <td>
+                                {{ row.label }}
+                                {% if row.is_identical %}<span class="badge badge-primary" style="margin-left:0.35rem;">Identical</span>{% endif %}
+                            </td>
                             {% for cell in row.cells %}
-                                <td>
-                                    {{ cell.value }}
-                                    {% if cell.is_winner %}<strong>(Best)</strong>{% endif %}
+                                <td class="{% if cell.is_winner %}winner-cell{% endif %}">
+                                    {{ cell.value }} {% if cell.is_winner %}★{% endif %}
                                 </td>
                             {% endfor %}
                         </tr>
@@ -63,5 +132,42 @@
             </tbody>
         </table>
     </div>
+
+    {% if matrix.secondary_criteria_rows %}
+        <details class="card" style="margin-top:var(--space-4);">
+            <summary>Show Lower-Priority Criteria ({{ matrix.secondary_criteria_rows|length }} collapsed)</summary>
+            <table class="compare-table">
+                <tbody>
+                    {% for row in matrix.secondary_criteria_rows %}
+                        <tr>
+                            <td style="width:210px;">{{ row.criteria.name }} (Weight {{ row.weight|floatformat:0 }})</td>
+                            {% for cell in row.cells %}
+                                <td class="{% if cell.is_winner %}winner-cell{% endif %}">
+                                    {{ cell.score|default:"—" }}/10
+                                </td>
+                            {% endfor %}
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </details>
+    {% endif %}
+
+    <script>
+        let identicalHidden = false;
+        const identicalCount = {{ matrix.identical_spec_count }};
+        function toggleIdenticalRows() {
+            identicalHidden = !identicalHidden;
+            document.querySelectorAll(".spec-identical-row").forEach(row => {
+                row.classList.toggle("hidden-identical", identicalHidden);
+            });
+            const btn = document.getElementById("toggle_identical_btn");
+            if (btn) {
+                btn.innerText = identicalHidden
+                    ? "👁️ Show All (" + identicalCount + " identical hidden)"
+                    : "👁️ Hide " + identicalCount + " Identical Specification" + (identicalCount === 1 ? "" : "s");
+            }
+        }
+    </script>
 {% endif %}
 {% endblock %}

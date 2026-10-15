@@ -3,25 +3,38 @@
 {% block title %}{{ category.name }} — Decision Matrix{% endblock %}
 
 {% block content %}
-<div class="flex-between" style="margin-bottom: 1.5rem;">
+<div class="flex-between" style="margin-bottom: var(--space-5);">
     <div>
-        <a href="{% url 'home' %}" class="text-muted" style="text-decoration:none;">← Back to Categories</a>
+        <a href="{% url 'home' %}" class="text-muted">← Back to Categories</a>
         <h1>{{ category.name }} Decision Matrix</h1>
     </div>
-    <a href="{% url 'catalog:product_compare' %}" class="btn btn-outline">⚖️ Compare Products Side-by-Side</a>
+    <a href="{% url 'catalog:product_compare' %}" class="btn btn-outline">⚖️ Open Compare Matrix</a>
 </div>
 
 <div class="workspace-grid">
     <aside class="card">
-        <h3>1. Weight Your Criteria</h3>
-        <p class="text-muted" style="font-size:0.88rem; margin-bottom:1rem;">
-            Set importance from 0 (Ignore) to 10 (Critical).
+        <h3>1. Choose a Persona Preset</h3>
+        <p class="text-muted" style="font-size:var(--text-xs); margin-bottom:var(--space-3);">
+            One-click priority profiles or fine-tune sliders below.
         </p>
 
-        <form method="get">
+        <div class="spec-pills" style="margin-bottom:var(--space-4);">
+            {% for preset in ui_presets %}
+                <button
+                    type="button"
+                    class="btn btn-outline btn-sm"
+                    onclick='applyPreset({{ preset.weights_json|safe }})'
+                >
+                    ⚡ {{ preset.label }}
+                </button>
+            {% endfor %}
+        </div>
+
+        <h3>2. Fine-Tune Priorities</h3>
+        <form id="weights_form" method="get" style="margin-top:var(--space-3);">
             {% for criterion in criteria_list %}
-                <div style="margin-bottom: 1.1rem;">
-                    <div class="flex-between" style="font-size:0.9rem; font-weight:600;">
+                <div style="margin-bottom: var(--space-4);">
+                    <div class="flex-between" style="font-size:var(--text-sm); font-weight:600;">
                         <label for="weight_{{ criterion.id }}">{{ criterion.name }}</label>
                         <span id="val_{{ criterion.id }}" class="badge badge-primary">{{ criterion.current_weight|floatformat:0 }} / 10</span>
                     </div>
@@ -33,87 +46,198 @@
                         id="weight_{{ criterion.id }}"
                         name="weight_{{ criterion.id }}"
                         value="{{ criterion.current_weight|floatformat:0 }}"
-                        oninput="document.getElementById('val_{{ criterion.id }}').innerText = this.value + ' / 10'"
+                        oninput="onSliderInput(this, '{{ criterion.id }}')"
                     >
                 </div>
             {% endfor %}
-            <button type="submit" class="btn btn-block">🔄 Recalculate Match %</button>
+            <noscript>
+                <button type="submit" class="btn btn-block">Recalculate</button>
+            </noscript>
         </form>
+        <p id="live_status" class="text-muted" style="font-size:var(--text-xs); margin-top:var(--space-2);">
+            ✓ Rankings update automatically as you adjust sliders.
+        </p>
     </aside>
 
-    <section>
+    <section id="ranked_results_container">
+        {% if best_match %}
+            <div class="card best-match-card">
+                <div class="flex-between">
+                    <div>
+                        <span class="badge badge-success">★ Best Match for Your Priorities — {{ best_match.match_percentage }}% Match</span>
+                        <h2 style="margin-top:var(--space-1);">
+                            <a href="{% url 'catalog:product_detail' best_match.slug %}">{{ best_match.brand }} {{ best_match.name }}</a>
+                        </h2>
+                        <span class="text-muted" style="font-size:var(--text-sm);">
+                            Price: <strong>&dollar;{{ best_match.price }}</strong> &middot; {{ best_match.smart_summary.basis_text }}
+                        </span>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-size:var(--text-2xl); font-weight:800; color:var(--success);">
+                            {{ best_match.weighted_score }} <span class="text-muted" style="font-size:var(--text-sm);">/ 10</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="summary-box">
+                    <strong>Why it matches your priorities:</strong>
+                    <ul class="consensus-list">
+                        {% for item in best_match.smart_summary.pros %}
+                            <li class="consensus-pro">+ {{ item }}</li>
+                        {% endfor %}
+                        {% for item in best_match.smart_summary.mixed %}
+                            <li class="consensus-mixed">&plusmn; {{ item }}</li>
+                        {% endfor %}
+                        {% for item in best_match.smart_summary.cons %}
+                            <li class="consensus-con">&minus; {{ item }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+
+                {% if best_match.dealbreakers %}
+                    <div class="alert alert-warning">
+                        ⚠ Dealbreaker Notice: Scores below 6.0 on your high-priority criteria ({{ best_match.dealbreakers|join:", " }}).
+                    </div>
+                {% endif %}
+
+                <div class="flex-between">
+                    <button type="button" class="btn btn-outline btn-sm" onclick="toggleCompareTrayItem('{{ best_match.slug }}', '{{ best_match.brand }} {{ best_match.name }}', '{{ category.slug }}')">
+                        + Add to Compare
+                    </button>
+                    <a href="{% url 'record_decision' best_match.slug %}{% if query_string %}?{{ query_string }}{% endif %}" class="btn">
+                        ✓ Select &amp; Record in Journal
+                    </a>
+                </div>
+            </div>
+        {% endif %}
+
+        <h3 style="margin: var(--space-4) 0 var(--space-3) 0;">All Evaluated Options</h3>
         {% for product in products %}
             <div class="card rank-card {% if forloop.first %}rank-1{% endif %}">
                 <div class="flex-between">
                     <div>
-                        <span class="badge {% if forloop.first %}badge-success{% else %}badge-primary{% endif %}">
-                            Rank #{{ forloop.counter }} — {{ product.match_percentage }}% Match to Your Needs
+                        {% if product.has_sufficient_data %}
+                            <span class="badge {% if forloop.first %}badge-success{% else %}badge-primary{% endif %}">
+                                Rank #{{ forloop.counter }} — {{ product.match_percentage }}% Match
+                            </span>
+                        {% else %}
+                            <span class="badge badge-warning">Insufficient Data (0 reviews)</span>
+                        {% endif %}
+                        <h3 style="margin-top:var(--space-1);">
+                            <a href="{% url 'catalog:product_detail' product.slug %}">{{ product.brand }} {{ product.name }}</a>
+                        </h3>
+                        <span class="text-muted" style="font-size:var(--text-xs);">
+                            &dollar;{{ product.price }} &middot; {{ product.smart_summary.basis_text }}
                         </span>
-                        <h2 style="margin-top:0.35rem;">
-                            <a href="{% url 'catalog:product_detail' product.slug %}" style="color:inherit; text-decoration:none;">
-                                {{ product.brand }} {{ product.name }}
-                            </a>
-                        </h2>
-                        <span class="text-muted" style="font-size:0.9rem;">Price: <strong>${{ product.price }}</strong></span>
                     </div>
 
                     <div style="text-align:right;">
-                        <div style="font-size:1.7rem; font-weight:800; color:var(--primary);">
-                            {{ product.weighted_score }} <span class="text-muted" style="font-size:0.95rem;">/ 10</span>
-                        </div>
-                        <div class="text-muted" style="font-size:0.82rem;">
-                            Unweighted Avg: {{ product.average_score|floatformat:1 }} ({{ product.review_count }} review{{ product.review_count|pluralize }})
-                        </div>
+                        {% if product.has_sufficient_data %}
+                            <strong style="font-size:var(--text-xl); color:var(--primary);">{{ product.weighted_score }}/10</strong>
+                        {% else %}
+                            <span class="text-muted">No scores yet</span>
+                        {% endif %}
                     </div>
                 </div>
 
-                <div class="score-bar-track">
-                    <div class="score-bar-fill" style="width: {{ product.match_percentage }}%;"></div>
-                </div>
-
-                {% if product.smart_summary %}
-                    <div class="summary-box">
-                        <strong>💡 Smart Summary:</strong> {{ product.smart_summary.verdict }}
-                        <div style="margin-top:0.4rem; display:flex; gap:1rem; flex-wrap:wrap;">
-                            {% if product.smart_summary.strengths %}
-                                <span style="color:var(--accent);">✓ Strengths: {{ product.smart_summary.strengths|join:", " }}</span>
-                            {% endif %}
-                            {% if product.smart_summary.tradeoffs %}
-                                <span style="color:var(--warning);">⚠ Trade-offs: {{ product.smart_summary.tradeoffs|join:", " }}</span>
-                            {% endif %}
-                        </div>
+                {% if product.has_sufficient_data %}
+                    <div class="score-bar-track">
+                        <div class="score-bar-fill" style="width: {{ product.match_percentage }}%;"></div>
                     </div>
                 {% endif %}
 
-                {% if product.criteria_breakdown %}
-                    <div class="grid-2" style="gap:0.75rem; margin:0.75rem 0;">
+                <div class="summary-box">
+                    <ul class="consensus-list">
+                        {% for item in product.smart_summary.pros %}
+                            <li class="consensus-pro">+ {{ item }}</li>
+                        {% endfor %}
+                        {% for item in product.smart_summary.mixed %}
+                            <li class="consensus-mixed">&plusmn; {{ item }}</li>
+                        {% endfor %}
+                        {% for item in product.smart_summary.cons %}
+                            <li class="consensus-con">&minus; {{ item }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+
+                <details>
+                    <summary>Show Detailed Criteria &amp; Specs Breakdown</summary>
+                    <div class="grid-2" style="margin-top:var(--space-3);">
                         {% for item in product.criteria_breakdown %}
                             <div>
-                                <div class="flex-between" style="font-size:0.8rem;">
-                                    <span>{{ item.name }}</span>
-                                    <strong>{{ item.score }}/10</strong>
+                                <div class="flex-between" style="font-size:var(--text-xs);">
+                                    <span>{% if item.is_subcriterion %}↳ {% endif %}{{ item.name }}</span>
+                                    <strong>{{ item.score|default:"—" }}/10</strong>
                                 </div>
-                                <div class="score-bar-track" style="height:6px; margin:0.2rem 0;">
+                                <div class="score-bar-track" style="height:5px;">
                                     <div class="score-bar-fill" style="width: {{ item.percentage }}%;"></div>
                                 </div>
                             </div>
                         {% endfor %}
                     </div>
-                {% endif %}
+                </details>
 
-                <div class="flex-between" style="margin-top:1rem;">
-                    <div style="display:flex; gap:0.5rem;">
-                        <a href="{% url 'catalog:product_detail' product.slug %}" class="btn btn-outline">🔍 Details & Reviews</a>
-                        <a href="{% url 'reviews:write_review' product.slug %}" class="btn btn-outline">✍️ Rate Criteria</a>
+                <div class="flex-between" style="margin-top:var(--space-3);">
+                    <div style="display:flex; gap:var(--space-2);">
+                        <button type="button" class="btn btn-outline btn-sm" onclick="toggleCompareTrayItem('{{ product.slug }}', '{{ product.brand }} {{ product.name }}', '{{ category.slug }}')">
+                            + Compare
+                        </button>
+                        <a href="{% url 'catalog:product_detail' product.slug %}" class="btn btn-outline btn-sm">Details</a>
+                        <a href="{% url 'reviews:write_review' product.slug %}" class="btn btn-outline btn-sm">Rate</a>
                     </div>
-                    <a href="{% url 'record_decision' product.slug %}{% if query_string %}?{{ query_string }}{% endif %}" class="btn">
-                        ✓ Select & Record in Journal
+                    <a href="{% url 'record_decision' product.slug %}{% if query_string %}?{{ query_string }}{% endif %}" class="btn btn-sm">
+                        Select &amp; Record
                     </a>
                 </div>
             </div>
-        {% empty %}
-            <div class="card"><p>No products found in this category.</p></div>
         {% endfor %}
     </section>
 </div>
+
+<script>
+    let debounceTimer = null;
+
+    function onSliderInput(inputEl, critId) {
+        document.getElementById("val_" + critId).innerText = inputEl.value + " / 10";
+        triggerLiveRankingUpdate();
+    }
+
+    function applyPreset(weightsMap) {
+        for (const [inputName, val] of Object.entries(weightsMap)) {
+            const el = document.getElementById(inputName);
+            if (el) {
+                el.value = val;
+                const critId = inputName.replace("weight_", "");
+                const badge = document.getElementById("val_" + critId);
+                if (badge) badge.innerText = val + " / 10";
+            }
+        }
+        triggerLiveRankingUpdate();
+    }
+
+    function triggerLiveRankingUpdate() {
+        clearTimeout(debounceTimer);
+        const statusEl = document.getElementById("live_status");
+        if (statusEl) statusEl.innerText = "⏳ Recalculating live match scores...";
+
+        debounceTimer = setTimeout(() => {
+            const form = document.getElementById("weights_form");
+            const params = new URLSearchParams(new FormData(form)).toString();
+            const newUrl = window.location.pathname + "?" + params;
+            window.history.replaceState({}, "", newUrl);
+
+            fetch(newUrl)
+                .then(r => r.text())
+                .then(html => {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, "text/html");
+                    const updatedResults = doc.getElementById("ranked_results_container");
+                    if (updatedResults) {
+                        document.getElementById("ranked_results_container").innerHTML = updatedResults.innerHTML;
+                    }
+                    if (statusEl) statusEl.innerText = "✓ Rankings updated live.";
+                });
+        }, 140);
+    }
+</script>
 {% endblock %}
