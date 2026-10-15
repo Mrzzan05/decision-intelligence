@@ -1,36 +1,67 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
 {% block title %}Dashboard — Decision Intelligence Platform{% endblock %}
 
 {% block content %}
 <section class="hero">
-    <h1>Multi-Criteria Decision Intelligence</h1>
-    <p>Move beyond simple star ratings. Weight the criteria that matter to you, analyze trade-offs, and log your decisions.</p>
-    <div style="display: flex; gap: 1rem; margin-top: 1.5rem; flex-wrap: wrap;">
-        <span class="badge badge-primary">{{ total_products }} Products Evaluated</span>
-        <span class="badge badge-primary">{{ total_reviews }} Expert & User Reviews</span>
-        <span class="badge badge-success">{{ total_decisions }} Recorded Decisions</span>
+    <div class="flex-between">
+        <div style="max-width: 760px;">
+            <span class="badge badge-primary" style="margin-bottom: var(--space-2);">
+                <i data-lucide="cpu" class="icon-inline"></i> Multi-Criteria Decision Support System (MCDA)
+            </span>
+            <h1>Benchmark-Driven Decision Intelligence</h1>
+            <p>
+                Compare real-world Laptops &amp; Smartphones across normalized hardware benchmarks, verified buyer consensus, and interactive Radar &amp; Grouped Bar visualizations.
+            </p>
+            <div class="spec-pills" style="margin-top: var(--space-4);">
+                <span class="badge badge-primary"><i data-lucide="package" class="icon-inline"></i> {{ total_products }} Real Flagship Models</span>
+                <span class="badge badge-primary"><i data-lucide="message-square-quote" class="icon-inline"></i> {{ total_reviews }} Verified Buyer Reviews</span>
+                <span class="badge badge-success"><i data-lucide="check-circle-2" class="icon-inline"></i> {{ total_decisions }} Logged Decisions</span>
+            </div>
+        </div>
+        <div>
+            <lord-icon
+                src="https://cdn.lordicon.com/uukerzzv.json"
+                trigger="loop"
+                delay="2500"
+                colors="primary:#3b82f6,secondary:#10b981"
+                style="width:96px;height:96px;">
+            </lord-icon>
+        </div>
     </div>
 </section>
 
-<h2 style="margin-bottom: 1.25rem;">Select a Category to Start Ranking</h2>
+<div class="flex-between" style="margin-bottom: var(--space-4);">
+    <h2><i data-lucide="compass" class="icon-inline"></i> Select a Category to Launch the Decision Matrix</h2>
+    <a href="{% url 'catalog:product_compare' %}?p=lenovo-loq-15irh8&amp;p=macbook-air-m3&amp;p=asus-rog-zephyrus-g14-2024" class="btn btn-outline btn-sm">
+        <i data-lucide="radar" class="icon-inline"></i> Try Live 3-Laptop Radar Comparison →
+    </a>
+</div>
 
-<div class="grid-3">
+<div class="grid-2">
     {% for category in categories %}
         <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
             <div>
-                <h3 style="font-size: 1.35rem; margin-bottom: 0.5rem;">{{ category.name }}</h3>
-                <p style="color: var(--muted); font-size: 0.92rem; margin-bottom: 1.25rem;">
-                    Compare {{ category.product_count }} products across {{ category.criteria_count }} specialized decision criteria.
+                <div class="flex-between">
+                    <span class="badge badge-primary">
+                        {% if category.slug == 'laptops' %}
+                            <i data-lucide="laptop" class="icon-inline"></i> Lenovo &middot; Apple &middot; ASUS &middot; Dell &middot; HP
+                        {% else %}
+                            <i data-lucide="smartphone" class="icon-inline"></i> Samsung &middot; Apple &middot; Xiaomi &middot; Google &middot; Oppo &middot; Nothing &middot; Huawei
+                        {% endif %}
+                    </span>
+                    <span class="spec-pill">{{ category.product_count }} Models</span>
+                </div>
+                <h3 style="font-size: var(--text-xl); margin: var(--space-3) 0 var(--space-2) 0;">{{ category.name }}</h3>
+                <p class="text-muted" style="font-size: var(--text-sm); margin-bottom: var(--space-4);">
+                    Evaluate {{ category.product_count }} real-world models across {{ category.criteria_count }} weighted decision criteria, hardware benchmarks, and verified buyer consensus.
                 </p>
             </div>
-            <a href="{% url 'recommendations:category_recommendations' category.slug %}" class="btn btn-block">
-                Launch Decision Matrix →
-            </a>
-        </div>
-    {% empty %}
-        <div class="card">
-            <p>No categories found yet. Run <code>uv run python manage.py seed_data</code> to populate demo data!</p>
+            <div style="display:flex; gap:var(--space-3);">
+                <a href="{% url 'recommendations:category_recommendations' category.slug %}" class="btn btn-block">
+                    <i data-lucide="Sliders" class="icon-inline"></i> Launch {{ category.name }} Matrix →
+                </a>
+            </div>
         </div>
     {% endfor %}
 </div>

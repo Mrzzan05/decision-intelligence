@@ -5,17 +5,27 @@
 {% block content %}
 <div class="flex-between" style="margin-bottom: var(--space-5);">
     <div>
-        <a href="{% url 'home' %}" class="text-muted">← Back to Categories</a>
+        <a href="{% url 'home' %}" class="text-muted"><i data-lucide="arrow-left" class="icon-inline"></i> Back to Categories</a>
         <h1>{{ category.name }} Decision Matrix</h1>
     </div>
-    <a href="{% url 'catalog:product_compare' %}" class="btn btn-outline">⚖️ Open Compare Matrix</a>
+    <a href="{% url 'catalog:product_compare' %}" class="btn btn-outline">
+        <i data-lucide="git-compare" class="icon-inline"></i> Open Side-by-Side Compare
+    </a>
 </div>
 
 <div class="workspace-grid">
-    <aside class="card">
-        <h3>1. Choose a Persona Preset</h3>
+    <aside class="card" style="position: sticky; top: var(--space-3);">
+        <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:var(--space-2);">
+            <lord-icon
+                src="https://cdn.lordicon.com/sbiheqdr.json"
+                trigger="hover"
+                colors="primary:#3b82f6,secondary:#10b981"
+                style="width:32px;height:32px;">
+            </lord-icon>
+            <h3>1. Persona Presets</h3>
+        </div>
         <p class="text-muted" style="font-size:var(--text-xs); margin-bottom:var(--space-3);">
-            One-click priority profiles or fine-tune sliders below.
+            Click a persona to auto-configure weights or fine-tune sliders below.
         </p>
 
         <div class="spec-pills" style="margin-bottom:var(--space-4);">
@@ -25,12 +35,12 @@
                     class="btn btn-outline btn-sm"
                     onclick='applyPreset({{ preset.weights_json|safe }})'
                 >
-                    ⚡ {{ preset.label }}
+                    <i data-lucide="sparkles" class="icon-inline"></i> {{ preset.label }}
                 </button>
             {% endfor %}
         </div>
 
-        <h3>2. Fine-Tune Priorities</h3>
+        <h3><i data-lucide="sliders-horizontal" class="icon-inline"></i> 2. Criteria Weights</h3>
         <form id="weights_form" method="get" style="margin-top:var(--space-3);">
             {% for criterion in criteria_list %}
                 <div style="margin-bottom: var(--space-4);">
@@ -55,22 +65,33 @@
             </noscript>
         </form>
         <p id="live_status" class="text-muted" style="font-size:var(--text-xs); margin-top:var(--space-2);">
-            ✓ Rankings update automatically as you adjust sliders.
+            <i data-lucide="zap" class="icon-inline"></i> Live recalculation active.
         </p>
     </aside>
 
     <section id="ranked_results_container">
+        <script id="top3_chart_payload" type="application/json">{{ top3_chart_json|safe }}</script>
+
         {% if best_match %}
             <div class="card best-match-card">
                 <div class="flex-between">
-                    <div>
-                        <span class="badge badge-success">★ Best Match for Your Priorities — {{ best_match.match_percentage }}% Match</span>
-                        <h2 style="margin-top:var(--space-1);">
-                            <a href="{% url 'catalog:product_detail' best_match.slug %}">{{ best_match.brand }} {{ best_match.name }}</a>
-                        </h2>
-                        <span class="text-muted" style="font-size:var(--text-sm);">
-                            Price: <strong>&dollar;{{ best_match.price }}</strong> &middot; {{ best_match.smart_summary.basis_text }}
-                        </span>
+                    <div style="display:flex; align-items:center; gap:0.75rem;">
+                        <lord-icon
+                            src="https://cdn.lordicon.com/lupuorrc.json"
+                            trigger="loop"
+                            delay="3000"
+                            colors="primary:#10b981,secondary:#3b82f6"
+                            style="width:48px;height:48px;">
+                        </lord-icon>
+                        <div>
+                            <span class="badge badge-success">★ #1 Best Match for Your Priorities — {{ best_match.match_percentage }}% Match</span>
+                            <h2 style="margin-top:var(--space-1);">
+                                <a href="{% url 'catalog:product_detail' best_match.slug %}">{{ best_match.brand }} {{ best_match.name }}</a>
+                            </h2>
+                            <span class="text-muted" style="font-size:var(--text-sm);">
+                                <i data-lucide="tag" class="icon-inline"></i> <strong>&dollar;{{ best_match.price }}</strong> &middot; {{ best_match.smart_summary.basis_text }}
+                            </span>
+                        </div>
                     </div>
                     <div style="text-align:right;">
                         <div style="font-size:var(--text-2xl); font-weight:800; color:var(--success);">
@@ -80,7 +101,7 @@
                 </div>
 
                 <div class="summary-box">
-                    <strong>Why it matches your priorities:</strong>
+                    <strong><i data-lucide="award" class="icon-inline"></i> Why it wins for your priorities:</strong>
                     <ul class="consensus-list">
                         {% for item in best_match.smart_summary.pros %}
                             <li class="consensus-pro">+ {{ item }}</li>
@@ -102,16 +123,33 @@
 
                 <div class="flex-between">
                     <button type="button" class="btn btn-outline btn-sm" onclick="toggleCompareTrayItem('{{ best_match.slug }}', '{{ best_match.brand }} {{ best_match.name }}', '{{ category.slug }}')">
-                        + Add to Compare
+                        <i data-lucide="plus-circle" class="icon-inline"></i> Add to Compare
                     </button>
                     <a href="{% url 'record_decision' best_match.slug %}{% if query_string %}?{{ query_string }}{% endif %}" class="btn">
-                        ✓ Select &amp; Record in Journal
+                        <i data-lucide="bookmark-check" class="icon-inline"></i> Select &amp; Record in Journal
                     </a>
                 </div>
             </div>
         {% endif %}
 
-        <h3 style="margin: var(--space-4) 0 var(--space-3) 0;">All Evaluated Options</h3>
+        <!-- Interactive Radar / Grouped Bar Chart for Top 3 Ranked Models -->
+        <div class="chart-panel">
+            <div class="flex-between" style="margin-bottom: var(--space-3);">
+                <div>
+                    <h3><i data-lucide="radar" class="icon-inline"></i> Top 3 Contenders — Multi-Criteria Footprint</h3>
+                    <p class="text-muted" style="font-size:var(--text-xs);">Hover over points to inspect exact benchmark scores across criteria.</p>
+                </div>
+                <div style="display:flex; gap:var(--space-2);">
+                    <button type="button" class="btn btn-outline btn-sm" onclick="switchMatrixChartType('radar')">Radar View</button>
+                    <button type="button" class="btn btn-outline btn-sm" onclick="switchMatrixChartType('bar')">Grouped Bar View</button>
+                </div>
+            </div>
+            <div class="chart-canvas-wrap">
+                <canvas id="matrix_top3_chart"></canvas>
+            </div>
+        </div>
+
+        <h3 style="margin: var(--space-4) 0 var(--space-3) 0;">All Evaluated Models ({{ products|length }})</h3>
         {% for product in products %}
             <div class="card rank-card {% if forloop.first %}rank-1{% endif %}">
                 <div class="flex-between">
@@ -161,7 +199,7 @@
                 </div>
 
                 <details>
-                    <summary>Show Detailed Criteria &amp; Specs Breakdown</summary>
+                    <summary>Show Detailed Criteria &amp; Hardware Benchmarks</summary>
                     <div class="grid-2" style="margin-top:var(--space-3);">
                         {% for item in product.criteria_breakdown %}
                             <div>
@@ -175,18 +213,23 @@
                             </div>
                         {% endfor %}
                     </div>
+                    <div class="spec-pills" style="margin-top:var(--space-3);">
+                        {% for spec in product.get_normalized_specs %}
+                            <span class="spec-pill"><i data-lucide="cpu" class="icon-inline"></i> <strong>{{ spec.label }}:</strong> {{ spec.display_value }}</span>
+                        {% endfor %}
+                    </div>
                 </details>
 
                 <div class="flex-between" style="margin-top:var(--space-3);">
                     <div style="display:flex; gap:var(--space-2);">
                         <button type="button" class="btn btn-outline btn-sm" onclick="toggleCompareTrayItem('{{ product.slug }}', '{{ product.brand }} {{ product.name }}', '{{ category.slug }}')">
-                            + Compare
+                            <i data-lucide="plus" class="icon-inline"></i> Compare
                         </button>
-                        <a href="{% url 'catalog:product_detail' product.slug %}" class="btn btn-outline btn-sm">Details</a>
-                        <a href="{% url 'reviews:write_review' product.slug %}" class="btn btn-outline btn-sm">Rate</a>
+                        <a href="{% url 'catalog:product_detail' product.slug %}" class="btn btn-outline btn-sm"><i data-lucide="info" class="icon-inline"></i> Details</a>
+                        <a href="{% url 'reviews:write_review' product.slug %}" class="btn btn-outline btn-sm"><i data-lucide="pen-line" class="icon-inline"></i> Rate</a>
                     </div>
                     <a href="{% url 'record_decision' product.slug %}{% if query_string %}?{{ query_string }}{% endif %}" class="btn btn-sm">
-                        Select &amp; Record
+                        <i data-lucide="check" class="icon-inline"></i> Select &amp; Record
                     </a>
                 </div>
             </div>
@@ -196,6 +239,67 @@
 
 <script>
     let debounceTimer = null;
+    let matrixChartInstance = null;
+    let currentMatrixChartType = "radar";
+
+    function getChartThemeColors() {
+        const isDark = document.documentElement.getAttribute("data-theme") === "dark" ||
+            (document.documentElement.getAttribute("data-theme") === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+        return {
+            text: isDark ? "#cbd5e1" : "#334155",
+            grid: isDark ? "rgba(148, 163, 184, 0.2)" : "rgba(100, 116, 139, 0.2)",
+        };
+    }
+
+    function renderMatrixChart() {
+        const payloadEl = document.getElementById("top3_chart_payload");
+        const canvas = document.getElementById("matrix_top3_chart");
+        if (!payloadEl || !canvas || !window.Chart) return;
+
+        const chartData = JSON.parse(payloadEl.textContent || "{}");
+        if (!chartData.labels || !chartData.datasets) return;
+
+        if (matrixChartInstance) {
+            matrixChartInstance.destroy();
+        }
+
+        const colors = getChartThemeColors();
+        const isRadar = currentMatrixChartType === "radar";
+
+        matrixChartInstance = new Chart(canvas, {
+            type: currentMatrixChartType,
+            data: chartData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { duration: 650, easing: "easeOutQuart" },
+                plugins: {
+                    legend: { labels: { color: colors.text, font: { weight: "600" } } },
+                    tooltip: { enabled: true }
+                },
+                scales: isRadar ? {
+                    r: {
+                        min: 0,
+                        max: 10,
+                        ticks: { stepSize: 2, color: colors.text, backdropColor: "transparent" },
+                        grid: { color: colors.grid },
+                        angleLines: { color: colors.grid },
+                        pointLabels: { color: colors.text, font: { size: 12, weight: "600" } }
+                    }
+                } : {
+                    x: { ticks: { color: colors.text }, grid: { color: colors.grid } },
+                    y: { min: 0, max: 10, ticks: { color: colors.text }, grid: { color: colors.grid } }
+                }
+            }
+        });
+    }
+
+    function switchMatrixChartType(type) {
+        currentMatrixChartType = type;
+        renderMatrixChart();
+    }
+
+    window.updateDecisionChartTheme = renderMatrixChart;
 
     function onSliderInput(inputEl, critId) {
         document.getElementById("val_" + critId).innerText = inputEl.value + " / 10";
@@ -220,24 +324,28 @@
         const statusEl = document.getElementById("live_status");
         if (statusEl) statusEl.innerText = "⏳ Recalculating live match scores...";
 
-        debounceTimer = setTimeout(() => {
+        debounceTimer = setTimeout(function() {
             const form = document.getElementById("weights_form");
             const params = new URLSearchParams(new FormData(form)).toString();
             const newUrl = window.location.pathname + "?" + params;
             window.history.replaceState({}, "", newUrl);
 
             fetch(newUrl)
-                .then(r => r.text())
-                .then(html => {
+                .then(function(r) { return r.text(); })
+                .then(function(html) {
                     const parser = new DOMParser();
                     const doc = parser.parseFromString(html, "text/html");
                     const updatedResults = doc.getElementById("ranked_results_container");
                     if (updatedResults) {
                         document.getElementById("ranked_results_container").innerHTML = updatedResults.innerHTML;
+                        renderMatrixChart();
+                        refreshLucideIcons();
                     }
-                    if (statusEl) statusEl.innerText = "✓ Rankings updated live.";
+                    if (statusEl) statusEl.innerText = "✓ Rankings & Radar Chart updated live.";
                 });
         }, 140);
     }
+
+    renderMatrixChart();
 </script>
 {% endblock %}

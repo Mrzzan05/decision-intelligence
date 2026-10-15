@@ -6,6 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Decision Intelligence Platform{% endblock %}</title>
     <link rel="stylesheet" href="{% static 'css/main.css' %}">
+    <!-- Lucide Vector Icons, Lordicon Animated Icons, and Chart.js 4 -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.lordicon.com/lordicon.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
     <script>
         (function() {
             const root = document.documentElement;
@@ -20,6 +24,9 @@
             const root = document.documentElement;
             root.setAttribute("data-theme", mode);
             localStorage.setItem("di_theme_mode", mode);
+            if (window.updateDecisionChartTheme) {
+                window.updateDecisionChartTheme();
+            }
 
             if (root.getAttribute("data-auth") === "true") {
                 const csrfToken = document.querySelector("[name=csrfmiddlewaretoken]")?.value || "";
@@ -31,26 +38,40 @@
                 });
             }
         }
+
+        function refreshLucideIcons() {
+            if (window.lucide) {
+                window.lucide.createIcons();
+            }
+        }
     </script>
 </head>
 <body>
     <form style="display:none;">{% csrf_token %}</form>
     <nav class="navbar">
-        <a href="{% url 'home' %}" class="brand">⚡ Decision Intelligence</a>
+        <a href="{% url 'home' %}" class="brand">
+            <lord-icon
+                src="https://cdn.lordicon.com/gqjpawbc.json"
+                trigger="hover"
+                colors="primary:#3b82f6,secondary:#10b981"
+                style="width:28px;height:28px;">
+            </lord-icon>
+            <span>Decision Intelligence</span>
+        </a>
         <div class="nav-links">
-            <a href="{% url 'home' %}">Categories</a>
-            <a href="{% url 'catalog:product_search' %}">Search &amp; Filter</a>
-            <a href="{% url 'catalog:product_compare' %}">Compare</a>
+            <a href="{% url 'home' %}"><i data-lucide="layers" class="icon-inline"></i> Categories</a>
+            <a href="{% url 'catalog:product_search' %}"><i data-lucide="search" class="icon-inline"></i> Search &amp; Filter</a>
+            <a href="{% url 'catalog:product_compare' %}"><i data-lucide="git-compare" class="icon-inline"></i> Compare</a>
             {% if user.is_authenticated %}
-                <a href="{% url 'dashboard' %}">Dashboard</a>
-                <a href="{% url 'journal_list' %}">Journal</a>
-                <a href="{% url 'accounts:profile' %}">{{ user.display_name }}</a>
+                <a href="{% url 'dashboard' %}"><i data-lucide="bar-chart-3" class="icon-inline"></i> Dashboard</a>
+                <a href="{% url 'journal_list' %}"><i data-lucide="book-open-check" class="icon-inline"></i> Journal</a>
+                <a href="{% url 'accounts:profile' %}"><i data-lucide="user-check" class="icon-inline"></i> {{ user.display_name }}</a>
                 <form method="post" action="{% url 'accounts:logout' %}" style="display:inline;">
                     {% csrf_token %}
                     <button type="submit" class="btn btn-outline btn-sm" style="color:#f8fafc;">Sign Out</button>
                 </form>
             {% else %}
-                <a href="{% url 'accounts:login' %}">Sign In</a>
+                <a href="{% url 'accounts:login' %}"><i data-lucide="log-in" class="icon-inline"></i> Sign In</a>
                 <a href="{% url 'accounts:signup' %}" class="btn btn-sm">Sign Up</a>
             {% endif %}
 
@@ -64,10 +85,9 @@
     </nav>
 
     <main class="container">
-        <!-- Floating Compare Tray -->
         <div id="compare_tray" class="compare-tray">
             <div>
-                <strong>⚖️ Comparison Tray (<span id="tray_count">0</span>/4):</strong>
+                <strong><i data-lucide="scale" class="icon-inline"></i> Comparison Tray (<span id="tray_count">0</span>/4):</strong>
                 <span id="tray_items" class="spec-pills" style="display:inline-flex; margin-left:0.5rem;"></span>
             </div>
             <div style="display:flex; gap:0.5rem;">
@@ -80,13 +100,11 @@
     </main>
 
     <script>
-        // Sync theme dropdown initial state
         const switcher = document.getElementById("theme_switcher");
         if (switcher) {
             switcher.value = document.documentElement.getAttribute("data-theme") || "system";
         }
 
-        // Compare Tray Logic (Same-category, max 4 products)
         function getTray() {
             try { return JSON.parse(localStorage.getItem("di_compare_tray") || "[]"); }
             catch { return []; }
@@ -109,7 +127,7 @@
                     alert("You can compare up to 4 products at a time.");
                     return;
                 }
-                items.push({ slug, name, category: categorySlug });
+                items.push({ slug: slug, name: name, category: categorySlug });
             }
             saveTray(items);
         }
@@ -127,12 +145,13 @@
             tray.style.display = "flex";
             document.getElementById("tray_count").innerText = items.length;
             document.getElementById("tray_items").innerHTML = items
-                .map(i => `<span class="spec-pill">${i.name}</span>`)
+                .map(function(i) { return '<span class="spec-pill">' + i.name + '</span>'; })
                 .join("");
-            const query = items.map(i => "p=" + encodeURIComponent(i.slug)).join("&");
+            const query = items.map(function(i) { return "p=" + encodeURIComponent(i.slug); }).join("&");
             document.getElementById("tray_launch_link").href = "{% url 'catalog:product_compare' %}?" + query;
         }
         renderCompareTray();
+        refreshLucideIcons();
     </script>
 </body>
 </html>

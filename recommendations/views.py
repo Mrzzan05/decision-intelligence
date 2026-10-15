@@ -5,6 +5,7 @@ from django.shortcuts import get_object_or_404, render
 from catalog.models import Category
 from recommendations.services import (
     DEFAULT_CRITERIA_WEIGHT,
+    build_chartjs_payload,
     parse_criteria_weights_from_params,
     rank_products_for_category,
 )
@@ -14,10 +15,6 @@ def category_recommendations_view(
     request: HttpRequest,
     category_slug: str,
 ) -> HttpResponse:
-    """
-    Thin view coordinating HTTP params, persona presets, and live ranking context.
-    Only top-level criteria (parent_id=None) are exposed as weight sliders.
-    """
     category = get_object_or_404(Category, slug=category_slug)
     weights = parse_criteria_weights_from_params(request.GET)
     ranked_products = rank_products_for_category(category=category, weights=weights)
@@ -28,7 +25,6 @@ def category_recommendations_view(
     for criterion in top_criteria:
         criterion.current_weight = weights.get(criterion.id, DEFAULT_CRITERIA_WEIGHT)  # type: ignore[attr-defined]
 
-    # Map category presets from criteria names to input IDs (weight_<id>)
     ui_presets = []
     for preset_key, preset_data in (category.presets or {}).items():
         mapped_weights = {}
@@ -43,7 +39,12 @@ def category_recommendations_view(
             }
         )
 
-    best_match = ranked_products[0] if ranked_products and getattr(ranked_products[0], "has_sufficient_data", False) else None
+    best_match = (
+        ranked_products[0]
+        if ranked_products and getattr(ranked_products[0], "has_sufficient_data", False)
+        else None
+    )
+    top3_chart_json = build_chartjs_payload(ranked_products[:3], top_criteria)
 
     context = {
         "category": category,
@@ -51,6 +52,7 @@ def category_recommendations_view(
         "products": ranked_products,
         "best_match": best_match,
         "ui_presets": ui_presets,
+        "top3_chart_json": top3_chart_json,
         "weights": weights,
         "query_string": request.GET.urlencode(),
     }

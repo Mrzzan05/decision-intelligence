@@ -3,10 +3,14 @@
 {% block title %}Side-by-Side Product Comparison{% endblock %}
 
 {% block content %}
-<h1>Apple &amp; Baymard-Style Product Comparison</h1>
-<p class="text-muted" style="margin-bottom:var(--space-4);">
-    Compare up to 4 products within the same category. Prioritized by your criteria weights, without declaring an arbitrary overall winner.
-</p>
+<div class="flex-between" style="margin-bottom: var(--space-4);">
+    <div>
+        <h1><i data-lucide="git-compare" class="icon-inline"></i> Head-to-Head Benchmark &amp; Criteria Comparison</h1>
+        <p class="text-muted">
+            Select 2 to 4 models in the same category to visualize their Radar footprint, Grouped Bar scores, and why each model wins.
+        </p>
+    </div>
+</div>
 
 {% if matrix.cross_category_warning %}
     <div class="alert alert-warning">
@@ -15,22 +19,47 @@
 {% endif %}
 
 <form method="get" class="card">
+    <h3 style="margin-bottom:var(--space-2);"><i data-lucide="check-square" class="icon-inline"></i> Select Products to Compare (Max 4 Same-Category)</h3>
     <div class="spec-pills">
         {% for prod in all_products %}
             <label class="spec-pill" style="cursor:pointer;">
                 <input type="checkbox" name="p" value="{{ prod.slug }}" {% if prod.slug in selected_slugs %}checked{% endif %}>
-                {{ prod.brand }} {{ prod.name }} ({{ prod.category.name }} &middot; &dollar;{{ prod.price }})
+                <strong>{{ prod.brand }}</strong> {{ prod.name }} ({{ prod.category.name }} &middot; &dollar;{{ prod.price }})
             </label>
         {% endfor %}
     </div>
-    <button type="submit" class="btn btn-sm" style="margin-top:var(--space-2);">⚖️ Update Comparison (Max 4)</button>
+    <button type="submit" class="btn btn-sm" style="margin-top:var(--space-2);">
+        <i data-lucide="refresh-cw" class="icon-inline"></i> Compare Selected Models
+    </button>
 </form>
 
 {% if compared_products %}
+    <!-- Visual Comparison: Animated Radar Chart & Grouped Bar Chart Switcher -->
+    <div class="chart-panel">
+        <div class="flex-between" style="margin-bottom: var(--space-3);">
+            <div>
+                <h3><i data-lucide="radar" class="icon-inline"></i> Visual Criteria Comparison (Radar vs. Grouped Bar)</h3>
+                <p class="text-muted" style="font-size:var(--text-xs);">Compare strengths and trade-offs across all category criteria.</p>
+            </div>
+            <div style="display:flex; gap:var(--space-2);">
+                <button type="button" class="btn btn-outline btn-sm" onclick="switchCompareChart('radar')">
+                    <i data-lucide="hexagon" class="icon-inline"></i> Radar Chart
+                </button>
+                <button type="button" class="btn btn-outline btn-sm" onclick="switchCompareChart('bar')">
+                    <i data-lucide="bar-chart-2" class="icon-inline"></i> Grouped Bar Chart
+                </button>
+            </div>
+        </div>
+        <div class="chart-canvas-wrap">
+            <canvas id="compare_visual_chart"></canvas>
+        </div>
+    </div>
+
     <div class="flex-between" style="margin: var(--space-4) 0;">
         <div>
             {% if matrix.identical_spec_count > 0 %}
                 <span class="badge badge-primary" id="identical_status_badge">
+                    <i data-lucide="copy-check" class="icon-inline"></i>
                     {{ matrix.identical_spec_count }} specification{{ matrix.identical_spec_count|pluralize }} identical across selected models
                 </span>
             {% endif %}
@@ -46,16 +75,16 @@
         <table class="compare-table" id="comparison_table">
             <thead>
                 <tr>
-                    <th style="min-width: 210px;">Dimension / Specification</th>
+                    <th style="min-width: 215px;">Dimension / Specification</th>
                     {% for prod in compared_products %}
                         <th>
-                            <a href="{% url 'catalog:product_detail' prod.slug %}" style="font-size:var(--text-base);">
+                            <a href="{% url 'catalog:product_detail' prod.slug %}" style="font-size:var(--text-base); font-weight:700;">
                                 {{ prod.brand }} {{ prod.name }}
                             </a>
-                            <div class="text-muted" style="font-size:var(--text-xs); font-weight:400;">
+                            <div class="text-muted" style="font-size:var(--text-xs); font-weight:400; margin-top:2px;">
                                 &dollar;{{ prod.price }} &middot;
                                 {% if prod.has_sufficient_data %}
-                                    <strong>{{ prod.match_percentage }}% Match</strong>
+                                    <span class="badge badge-success">{{ prod.match_percentage }}% Match</span>
                                 {% else %}
                                     Insufficient data
                                 {% endif %}
@@ -65,9 +94,34 @@
                 </tr>
             </thead>
             <tbody>
+                <!-- Head-to-Head Advantages: Why Choose Each Model -->
+                <tr class="compare-section-row">
+                    <td colspan="{{ compared_products|length|add:1 }}">
+                        <i data-lucide="trophy" class="icon-inline"></i> Why Choose This Model Over the Others? (Key Advantages)
+                    </td>
+                </tr>
+                <tr>
+                    <td><strong>Winning Edge</strong></td>
+                    {% for prod in compared_products %}
+                        <td>
+                            {% if prod.head_to_head_advantages %}
+                                <ul class="consensus-list">
+                                    {% for adv in prod.head_to_head_advantages %}
+                                        <li class="consensus-pro">★ {{ adv }}</li>
+                                    {% endfor %}
+                                </ul>
+                            {% else %}
+                                <span class="text-muted" style="font-size:var(--text-xs);">Balanced all-rounder across metrics</span>
+                            {% endif %}
+                        </td>
+                    {% endfor %}
+                </tr>
+
                 <!-- Section 1: Important Criteria for You -->
                 <tr class="compare-section-row">
-                    <td colspan="{{ compared_products|length|add:1 }}">🎯 Important Criteria for You (Priority Weight &ge; 6)</td>
+                    <td colspan="{{ compared_products|length|add:1 }}">
+                        <i data-lucide="target" class="icon-inline"></i> Important Criteria for You (Priority Weight &ge; 6)
+                    </td>
                 </tr>
                 {% for row in matrix.important_criteria_rows %}
                     <tr>
@@ -78,7 +132,7 @@
                         {% for cell in row.cells %}
                             <td class="{% if cell.is_winner %}winner-cell{% endif %}">
                                 {% if cell.score is not None %}
-                                    {{ cell.score }}/10 {% if cell.is_winner %}★{% endif %}
+                                    {{ cell.score }}/10 {% if cell.is_winner %}★ Best{% endif %}
                                 {% else %}
                                     Insufficient data
                                 {% endif %}
@@ -89,10 +143,12 @@
 
                 <!-- Section 2: Consensus Smart Summary -->
                 <tr class="compare-section-row">
-                    <td colspan="{{ compared_products|length|add:1 }}">💡 Community Consensus ({{ matrix.category.name }})</td>
+                    <td colspan="{{ compared_products|length|add:1 }}">
+                        <i data-lucide="users" class="icon-inline"></i> Verified Buyer Consensus ({{ matrix.category.name }})
+                    </td>
                 </tr>
                 <tr>
-                    <td><strong>Key Pros / Cons</strong></td>
+                    <td><strong>RTINGS-Style Summary</strong></td>
                     {% for prod in compared_products %}
                         <td>
                             <ul class="consensus-list">
@@ -110,10 +166,12 @@
                     {% endfor %}
                 </tr>
 
-                <!-- Section 3: Normalized Technical Specifications -->
+                <!-- Section 3: Normalized Technical Specifications & Benchmarks -->
                 {% for group in matrix.spec_groups %}
                     <tr class="compare-section-row">
-                        <td colspan="{{ compared_products|length|add:1 }}">🔧 {{ group.group_name }} Specifications</td>
+                        <td colspan="{{ compared_products|length|add:1 }}">
+                            <i data-lucide="cpu" class="icon-inline"></i> {{ group.group_name }}
+                        </td>
                     </tr>
                     {% for row in group.rows %}
                         <tr class="{% if row.is_identical %}spec-identical-row{% endif %}">
@@ -133,32 +191,16 @@
         </table>
     </div>
 
-    {% if matrix.secondary_criteria_rows %}
-        <details class="card" style="margin-top:var(--space-4);">
-            <summary>Show Lower-Priority Criteria ({{ matrix.secondary_criteria_rows|length }} collapsed)</summary>
-            <table class="compare-table">
-                <tbody>
-                    {% for row in matrix.secondary_criteria_rows %}
-                        <tr>
-                            <td style="width:210px;">{{ row.criteria.name }} (Weight {{ row.weight|floatformat:0 }})</td>
-                            {% for cell in row.cells %}
-                                <td class="{% if cell.is_winner %}winner-cell{% endif %}">
-                                    {{ cell.score|default:"—" }}/10
-                                </td>
-                            {% endfor %}
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </details>
-    {% endif %}
-
+    <script id="compare_chart_payload" type="application/json">{{ matrix.chart_data_json|safe }}</script>
     <script>
         let identicalHidden = false;
         const identicalCount = {{ matrix.identical_spec_count }};
+        let compareChartInstance = null;
+        let currentCompareChartType = "radar";
+
         function toggleIdenticalRows() {
             identicalHidden = !identicalHidden;
-            document.querySelectorAll(".spec-identical-row").forEach(row => {
+            document.querySelectorAll(".spec-identical-row").forEach(function(row) {
                 row.classList.toggle("hidden-identical", identicalHidden);
             });
             const btn = document.getElementById("toggle_identical_btn");
@@ -168,6 +210,60 @@
                     : "👁️ Hide " + identicalCount + " Identical Specification" + (identicalCount === 1 ? "" : "s");
             }
         }
+
+        function renderCompareChart() {
+            const payloadEl = document.getElementById("compare_chart_payload");
+            const canvas = document.getElementById("compare_visual_chart");
+            if (!payloadEl || !canvas || !window.Chart) return;
+
+            const chartData = JSON.parse(payloadEl.textContent || "{}");
+            if (!chartData.labels || !chartData.datasets) return;
+
+            if (compareChartInstance) {
+                compareChartInstance.destroy();
+            }
+
+            const isDark = document.documentElement.getAttribute("data-theme") === "dark" ||
+                (document.documentElement.getAttribute("data-theme") === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+            const textColor = isDark ? "#cbd5e1" : "#334155";
+            const gridColor = isDark ? "rgba(148, 163, 184, 0.2)" : "rgba(100, 116, 139, 0.2)";
+            const isRadar = currentCompareChartType === "radar";
+
+            compareChartInstance = new Chart(canvas, {
+                type: currentCompareChartType,
+                data: chartData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: { duration: 700, easing: "easeOutQuart" },
+                    plugins: {
+                        legend: { labels: { color: textColor, font: { weight: "600" } } },
+                        tooltip: { enabled: true }
+                    },
+                    scales: isRadar ? {
+                        r: {
+                            min: 0,
+                            max: 10,
+                            ticks: { stepSize: 2, color: textColor, backdropColor: "transparent" },
+                            grid: { color: gridColor },
+                            angleLines: { color: gridColor },
+                            pointLabels: { color: textColor, font: { size: 12, weight: "600" } }
+                        }
+                    } : {
+                        x: { ticks: { color: textColor }, grid: { color: gridColor } },
+                        y: { min: 0, max: 10, ticks: { color: textColor }, grid: { color: gridColor } }
+                    }
+                }
+            });
+        }
+
+        function switchCompareChart(type) {
+            currentCompareChartType = type;
+            renderCompareChart();
+        }
+
+        window.updateDecisionChartTheme = renderCompareChart;
+        renderCompareChart();
     </script>
 {% endif %}
 {% endblock %}

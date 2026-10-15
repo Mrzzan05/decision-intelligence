@@ -1,4 +1,5 @@
-﻿from collections import defaultdict
+﻿import json
+from collections import defaultdict
 from collections.abc import Mapping
 from typing import Any
 from django.db.models import Avg, Count, Q, StdDev
@@ -11,6 +12,13 @@ DEALBREAKER_WEIGHT_THRESHOLD: float = 8.0
 DEALBREAKER_SCORE_THRESHOLD: float = 6.0
 DEALBREAKER_PENALTY_FACTOR: float = 0.12
 MIXED_OPINION_STDDEV_THRESHOLD: float = 1.45
+
+CHART_PALETTE = [
+    {"border": "#3b82f6", "bg": "rgba(59, 130, 246, 0.22)"},
+    {"border": "#10b981", "bg": "rgba(16, 185, 129, 0.22)"},
+    {"border": "#f59e0b", "bg": "rgba(245, 158, 11, 0.22)"},
+    {"border": "#ec4899", "bg": "rgba(236, 72, 153, 0.22)"},
+]
 
 
 def parse_criteria_weights_from_params(
@@ -40,7 +48,6 @@ def build_weights_snapshot_by_name(
     category: Category,
     weights: Mapping[int, float] | None = None,
 ) -> dict[str, float]:
-    """Store only top-level criteria weights in the decision journal snapshot."""
     snapshot: dict[str, float] = {}
     for criterion in category.criteria.all():
         if criterion.parent_id is not None:
@@ -59,12 +66,6 @@ def generate_smart_summary(
     effective_weights: Mapping[int, float],
     review_count: int,
 ) -> dict[str, Any]:
-    """
-    RTINGS-style Consensus & Relative Smart Summary (zero external AI dependency).
-    - Evaluates each criterion against the category mean and reviewer consensus.
-    - Detects polarized opinions via population standard deviation (StdDev >= 1.45).
-    - Orders insights by the user's own priority weights (max 3 pros, max 3 cons).
-    """
     if review_count == 0 or not product_stats:
         return {
             "pros": [],
@@ -102,12 +103,10 @@ def generate_smart_summary(
         satisfied = int(stats["satisfied"])
         cat_mean = category_criteria_means.get(crit.id, 7.0)
 
-        # 1. Check for mixed / polarized opinions first
         if total >= 2 and stddev >= MIXED_OPINION_STDDEV_THRESHOLD:
             mixed.append(f"Opinions are mixed on {crit.name} ({satisfied} of {total} positive)")
             continue
 
-        # 2. Strong positive consensus (above category mean or >= 7.8 with majority >= 7)
         if avg >= max(7.5, cat_mean) and (satisfied / max(total, 1)) >= 0.7:
             if len(pros) < 3:
                 if total >= 2:
@@ -117,22 +116,21 @@ def generate_smart_summary(
                 else:
                     pros.append(f"High score in {crit.name} ({avg:.1f}/10)")
 
-        # 3. Notable complaint / trade-off (below category mean or <= 6.2)
         elif avg <= min(6.5, cat_mean - 0.3) or avg < 6.0:
             if len(cons) < 3:
                 cons.append(
                     f"{crit.name} is a common complaint among users ({avg:.1f}/10)"
                 )
 
-    basis_text = f"Based on {review_count} review{'s' if review_count != 1 else ''}"
+    basis_text = f"Based on {review_count} verified review{'s' if review_count != 1 else ''}"
     if pros and not cons:
-        verdict = f"Strong consensus performer ({basis_text.lower()})."
+        verdict = f"Strong consensus leader ({basis_text.lower()})."
     elif pros and cons:
-        verdict = f"High satisfaction in key areas with notable trade-offs ({basis_text.lower()})."
+        verdict = f"Excels in core priorities with clear trade-offs ({basis_text.lower()})."
     elif mixed:
-        verdict = f"Reviewer experiences vary across criteria ({basis_text.lower()})."
+        verdict = f"User experiences vary by workload ({basis_text.lower()})."
     else:
-        verdict = f"Balanced performance across category criteria ({basis_text.lower()})."
+        verdict = f"Well-rounded performer across category criteria ({basis_text.lower()})."
 
     return {
         "pros": pros,
@@ -146,17 +144,34 @@ def generate_smart_summary(
     }
 
 
+def build_chartjs_payload(
+    products: list[Product],
+    top_criteria: list[Criteria],
+) -> str:
+    """Serialize product criteria scores into a Chart.js Radar / Grouped Bar JSON payload."""
+    labels = [c.name for c in top_criteria]
+    datasets = []
+    for idx, prod in enumerate(products[:4]):
+        palette = CHART_PALETTE[idx % len(CHART_PALETTE)]
+        scores_map = getattr(prod, "criteria_scores", {})
+        data_points = [round(float(scores_map.get(c.id, 0.0)), 2) for c in top_criteria]
+        datasets.append(
+            {
+                "label": f"{prod.brand} {prod.name}",
+                "data": data_points,
+                "borderColor": palette["border"],
+                "backgroundColor": palette["bg"],
+                "pointBackgroundColor": palette["border"],
+                "borderWidth": 2,
+            }
+        )
+    return json.dumps({"labels": labels, "datasets": datasets})
+
+
 def rank_products_for_category(
     category: Category,
     weights: Mapping[int, float] | None = None,
 ) -> list[Product]:
-    """
-    Rank all products in a Category using Weighted Multi-Criteria Scoring.
-    - Executes in a constant O(1) number of SQL queries (strictly 3 queries).
-    - Top-level criteria (parent_id=None) drive the weighted score (no sub-criteria double counting).
-    - Unreviewed products get match_percentage=None ('Insufficient data') instead of 0%.
-    - Applies a Dealbreaker penalty when a high-priority criterion (weight >= 8) scores < 6.0.
-    """
     if weights:
         for criteria_id, weight in weights.items():
             if weight < 0:
@@ -164,7 +179,7 @@ def rank_products_for_category(
                     f"Weight for criteria {criteria_id} cannot be negative ({weight})."
                 )
 
-    # Query 1: Fetch all criteria (both top-level and sub-criteria) for this category
+    # Query 1: Fetch all criteria for this category
     criteria_list = list(category.criteria.all())
     top_level_criteria = [c for c in criteria_list if c.parent_id is None]
 
@@ -217,7 +232,6 @@ def rank_products_for_category(
         if vals
     }
 
-    # Effective weights apply ONLY to top-level criteria so sub-criteria are never double-counted
     effective_weights: dict[int, float] = {}
     for criterion in top_level_criteria:
         if weights and criterion.id in weights:
@@ -289,7 +303,6 @@ def rank_products_for_category(
             review_count=rev_count,
         )
 
-    # Sort products with sufficient data first, then by match_percentage and weighted_score
     products.sort(
         key=lambda p: (
             getattr(p, "has_sufficient_data", False),
@@ -308,21 +321,16 @@ def build_category_comparison_matrix(
     products: list[Product],
     weights: Mapping[int, float] | None = None,
 ) -> dict[str, Any]:
-    """
-    Build a Baymard/Apple-style comparison structure for up to 4 products in the SAME category.
-    - Rejects/filters cross-category products.
-    - Ranks criteria into 'important_criteria_rows' vs 'secondary_criteria_rows' based on user weights.
-    - Normalizes specs via category.spec_schema, detects identical rows, and marks row winners.
-    """
     if not products:
         return {
             "category": None,
             "products": [],
-            "cross_category_Warning": False,
+            "cross_category_warning": False,
             "important_criteria_rows": [],
             "secondary_criteria_rows": [],
             "spec_groups": [],
             "identical_spec_count": 0,
+            "chart_data_json": "{}",
         }
 
     primary_category = products[0].category
@@ -332,6 +340,18 @@ def build_category_comparison_matrix(
     ranked_all = rank_products_for_category(primary_category, weights=weights)
     ranked_map = {rp.id: rp for rp in ranked_all}
     enriched_products = [ranked_map.get(p.id, p) for p in same_cat_products]
+
+    advantages_map: dict[int, list[str]] = defaultdict(list)
+
+    # Check lowest price advantage among compared products
+    prices = [float(p.price) for p in enriched_products if p.price and p.price > 0]
+    if len(prices) >= 2 and min(prices) != max(prices):
+        min_p = min(prices)
+        max_p = max(prices)
+        for p in enriched_products:
+            if float(p.price) == min_p:
+                savings = int(round(max_p - min_p))
+                advantages_map[p.id].append(f"Most affordable option (saves up to USD {savings})")
 
     top_criteria = [c for c in primary_category.criteria.all() if c.parent_id is None]
     important_rows = []
@@ -343,29 +363,26 @@ def build_category_comparison_matrix(
             getattr(p, "criteria_scores", {}).get(crit.id) for p in enriched_products
         ]
         numeric_scores = [s for s in scores if s is not None]
-        best_score = max(numeric_scores) if len(numeric_scores) >= 2 else None
+        best_score = (
+            max(numeric_scores)
+            if len(numeric_scores) >= 2 and max(numeric_scores) != min(numeric_scores)
+            else None
+        )
 
-        row_data = {
-            "criteria": crit,
-            "weight": w,
-            "cells": [
-                {
-                    "product_id": p.id,
-                    "score": getattr(p, "criteria_scores", {}).get(crit.id),
-                    "is_winner": (
-                        best_score is not None
-                        and getattr(p, "criteria_scores", {}).get(crit.id) == best_score
-                    ),
-                }
-                for p in enriched_products
-            ],
-        }
+        cells = []
+        for p in enriched_products:
+            sc = getattr(p, "criteria_scores", {}).get(crit.id)
+            is_win = best_score is not None and sc == best_score
+            if is_win:
+                advantages_map[p.id].append(f"Highest score in {crit.name} ({sc}/10)")
+            cells.append({"product_id": p.id, "score": sc, "is_winner": is_win})
+
+        row_data = {"criteria": crit, "weight": w, "cells": cells}
         if w >= 6.0:
             important_rows.append(row_data)
         else:
             secondary_rows.append(row_data)
 
-    # Normalized Spec Schema rows
     schema = primary_category.spec_schema or []
     grouped_specs: dict[str, list[dict[str, Any]]] = defaultdict(list)
     identical_count = 0
@@ -398,6 +415,9 @@ def build_category_comparison_matrix(
                 and isinstance(rv, (int, float))
                 and float(rv) == winner_val
             )
+            if is_win and len(advantages_map[p.id]) < 4:
+                direction_word = "Best" if higher_is_better else "Lowest"
+                advantages_map[p.id].append(f"{direction_word} {label} ({disp})")
             cells.append({"product_id": p.id, "value": disp, "is_winner": is_win})
 
         grouped_specs[group_name].append(
@@ -409,9 +429,13 @@ def build_category_comparison_matrix(
             }
         )
 
+    for p in enriched_products:
+        p.head_to_head_advantages = advantages_map.get(p.id, [])[:3]  # type: ignore[attr-defined]
+
     spec_groups = [
         {"group_name": gname, "rows": rows} for gname, rows in grouped_specs.items()
     ]
+    chart_data_json = build_chartjs_payload(enriched_products, top_criteria)
 
     return {
         "category": primary_category,
@@ -421,4 +445,5 @@ def build_category_comparison_matrix(
         "secondary_criteria_rows": secondary_rows,
         "spec_groups": spec_groups,
         "identical_spec_count": identical_count,
+        "chart_data_json": chart_data_json,
     }
