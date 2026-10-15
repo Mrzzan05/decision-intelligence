@@ -1,0 +1,59 @@
+﻿{% extends "base.html" %}
+
+{% block title %}My Decision Journal{% endblock %}
+
+{% block content %}
+<div class="flex-between" style="margin-bottom:1.5rem;">
+    <div>
+        <h1>My Decision Journal (Expectation vs. Reality)</h1>
+        <p class="text-muted">Track pre-purchase expectations against real post-purchase experience.</p>
+    </div>
+    <a href="{% url 'home' %}" class="btn">+ New Decision Analysis</a>
+</div>
+
+{% for entry in entries %}
+    <div class="card">
+        <div class="flex-between">
+            <div>
+                <span class="badge badge-primary">{{ entry.category.name }}</span>
+                <h3 style="display:inline; margin-left:0.5rem;">{{ entry.chosen_product }}</h3>
+            </div>
+            <span class="text-muted">{{ entry.created_at|date:"M d, Y" }}</span>
+        </div>
+
+        <p style="margin-top:0.75rem;"><strong>Rationale:</strong> {{ entry.rationale }}</p>
+
+        <div class="grid-2" style="margin-top:0.75rem;">
+            <div class="summary-box">
+                <strong>🎯 Pre-Purchase Expectation (Expected: {{ entry.expected_rating|default:"-" }}/10)</strong>
+                <p>{{ entry.expected_outcome|default:"Not recorded yet." }}</p>
+            </div>
+            <div class="summary-box">
+                <strong>🔍 Post-Purchase Reality (Actual: {{ entry.satisfaction_rating|default:"Pending" }}/10)</strong>
+                <p>{{ entry.actual_experience|default:"Update this after using the product for a few weeks/months." }}</p>
+            </div>
+        </div>
+
+        {% if entry.weights_snapshot %}
+            <div class="spec-pills">
+                {% for crit_name, w_val in entry.weights_snapshot.items %}
+                    <span class="spec-pill">{{ crit_name }}: <strong>{{ w_val }}/10</strong></span>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <div class="flex-between" style="margin-top:0.75rem;">
+            <div>
+                {% if entry.expectation_gap is not None %}
+                    <span class="badge {% if entry.expectation_gap >= 0 %}badge-success{% else %}badge-warning{% endif %}">
+                        Outcome vs. Expectation Delta: {% if entry.expectation_gap > 0 %}+{% endif %}{{ entry.expectation_gap }}
+                    </span>
+                {% endif %}
+            </div>
+            <a href="{% url 'update_decision' entry.id %}" class="btn btn-outline">✏️ Log / Update Post-Purchase Experience</a>
+        </div>
+    </div>
+{% empty %}
+    <div class="card"><p>Your Decision Journal is empty.</p></div>
+{% endfor %}
+{% endblock %}

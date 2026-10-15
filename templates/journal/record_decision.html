@@ -1,0 +1,47 @@
+﻿{% extends "base.html" %}
+
+{% block title %}Record Decision — {{ product }}{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width:700px; margin:0 auto;">
+    <span class="badge badge-primary">{{ product.category.name }}</span>
+    <h1>{% if is_updating %}Update Post-Purchase Reality{% else %}Log Decision{% endif %}: {{ product }}</h1>
+
+    {% if weights_snapshot %}
+        <div class="summary-box">
+            <strong>📊 Criteria Weights Snapshot:</strong>
+            <div class="spec-pills">
+                {% for crit_name, w_val in weights_snapshot.items %}
+                    <span class="spec-pill"><strong>{{ crit_name }}:</strong> {{ w_val|floatformat:0 }}/10</span>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+
+    {% if form.errors %}
+        <div style="background:#fef2f2; border:1px solid #f87171; color:#991b1b; padding:1rem; border-radius:8px; margin-bottom:1rem;">
+            <strong>Please correct the errors below:</strong>
+            {% for field in form %}{% for error in field.errors %}<div>• {{ field.label }}: {{ error }}</div>{% endfor %}{% endfor %}
+        </div>
+    {% endif %}
+
+    <form method="post" novalidate>
+        {% csrf_token %}
+        {% for hidden_name, hidden_val in weight_hidden_fields.items %}
+            <input type="hidden" name="{{ hidden_name }}" value="{{ hidden_val }}">
+        {% endfor %}
+
+        {% for field in form %}
+            <div style="margin-bottom:1rem;">
+                <label for="{{ field.id_for_label }}"><strong>{{ field.label }}</strong></label>
+                {{ field }}
+            </div>
+        {% endfor %}
+
+        <div style="display:flex; gap:1rem;">
+            <button type="submit" class="btn">💾 Save Decision Entry</button>
+            <a href="{% url 'journal_list' %}" class="btn btn-outline">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}Sign In — Decision Intelligence{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 460px; margin: 2rem auto;">
+    <h1 style="margin-bottom: 0.5rem;">Sign In</h1>
+    <p style="color: var(--muted); margin-bottom: 1.5rem;">Sign in with your email address to access your Decision Journal and preferences.</p>
+
+    {% if form.errors %}
+        <div style="background: #fef2f2; border: 1px solid #f87171; color: #991b1b; padding: 0.85rem; border-radius: 8px; margin-bottom: 1rem;">
+            Invalid email or password. Please try again.
+        </div>
+    {% endif %}
+
+    <form method="post">
+        {% csrf_token %}
+        {% for field in form %}
+            <div style="margin-bottom: 1rem;">
+                <label for="{{ field.id_for_label }}" style="font-weight: 600; display: block; margin-bottom: 0.35rem;">
+                    {{ field.label }}
+                </label>
+                {{ field }}
+            </div>
+        {% endfor %}
+        <button type="submit" class="btn btn-block" style="margin-top: 0.5rem;">Sign In</button>
+    </form>
+
+    <p style="margin-top: 1.25rem; text-align: center; font-size: 0.9rem; color: var(--muted);">
+        Don't have an account? <a href="{% url 'accounts:signup' %}">Create one now</a>
+    </p>
+</div>
+{% endblock %}

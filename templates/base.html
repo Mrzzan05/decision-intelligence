@@ -1,0 +1,53 @@
+﻿{% load static %}
+<!DOCTYPE html>
+<html lang="en" data-theme="{% if user.is_authenticated and user.preference.dark_mode %}dark{% else %}light{% endif %}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Decision Intelligence Platform{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'css/main.css' %}">
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem("di_theme");
+            if (savedTheme) {
+                document.documentElement.setAttribute("data-theme", savedTheme);
+            }
+        })();
+        function toggleTheme() {
+            const root = document.documentElement;
+            const next = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
+            root.setAttribute("data-theme", next);
+            localStorage.setItem("di_theme", next);
+        }
+    </script>
+</head>
+<body>
+    <nav class="navbar">
+        <a href="{% url 'home' %}" class="brand">⚡ Decision Intelligence</a>
+        <div class="nav-links">
+            <a href="{% url 'home' %}">Categories</a>
+            <a href="{% url 'catalog:product_search' %}">Search & Filter</a>
+            <a href="{% url 'catalog:product_compare' %}">Compare</a>
+            {% if user.is_authenticated %}
+                <a href="{% url 'dashboard' %}">Analytics Dashboard</a>
+                <a href="{% url 'journal_list' %}">Journal</a>
+                <a href="{% url 'accounts:profile' %}">{{ user.email }}</a>
+                <form method="post" action="{% url 'accounts:logout' %}" style="display:inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-outline" style="color:#fff; border-color:#475569; padding:0.3rem 0.7rem;">Sign Out</button>
+                </form>
+            {% else %}
+                <a href="{% url 'accounts:login' %}">Sign In</a>
+                <a href="{% url 'accounts:signup' %}" class="btn" style="padding:0.35rem 0.85rem;">Sign Up</a>
+            {% endif %}
+            <button type="button" onclick="toggleTheme()" class="btn btn-outline" style="color:#fff; border-color:#475569; padding:0.3rem 0.65rem;" title="Toggle Dark/Light Theme">
+                🌓 Theme
+            </button>
+        </div>
+    </nav>
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

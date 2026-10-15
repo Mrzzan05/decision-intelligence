@@ -1,0 +1,119 @@
+﻿{% extends "base.html" %}
+
+{% block title %}{{ category.name }} — Decision Matrix{% endblock %}
+
+{% block content %}
+<div class="flex-between" style="margin-bottom: 1.5rem;">
+    <div>
+        <a href="{% url 'home' %}" class="text-muted" style="text-decoration:none;">← Back to Categories</a>
+        <h1>{{ category.name }} Decision Matrix</h1>
+    </div>
+    <a href="{% url 'catalog:product_compare' %}" class="btn btn-outline">⚖️ Compare Products Side-by-Side</a>
+</div>
+
+<div class="workspace-grid">
+    <aside class="card">
+        <h3>1. Weight Your Criteria</h3>
+        <p class="text-muted" style="font-size:0.88rem; margin-bottom:1rem;">
+            Set importance from 0 (Ignore) to 10 (Critical).
+        </p>
+
+        <form method="get">
+            {% for criterion in criteria_list %}
+                <div style="margin-bottom: 1.1rem;">
+                    <div class="flex-between" style="font-size:0.9rem; font-weight:600;">
+                        <label for="weight_{{ criterion.id }}">{{ criterion.name }}</label>
+                        <span id="val_{{ criterion.id }}" class="badge badge-primary">{{ criterion.current_weight|floatformat:0 }} / 10</span>
+                    </div>
+                    <input
+                        type="range"
+                        min="0"
+                        max="10"
+                        step="1"
+                        id="weight_{{ criterion.id }}"
+                        name="weight_{{ criterion.id }}"
+                        value="{{ criterion.current_weight|floatformat:0 }}"
+                        oninput="document.getElementById('val_{{ criterion.id }}').innerText = this.value + ' / 10'"
+                    >
+                </div>
+            {% endfor %}
+            <button type="submit" class="btn btn-block">🔄 Recalculate Match %</button>
+        </form>
+    </aside>
+
+    <section>
+        {% for product in products %}
+            <div class="card rank-card {% if forloop.first %}rank-1{% endif %}">
+                <div class="flex-between">
+                    <div>
+                        <span class="badge {% if forloop.first %}badge-success{% else %}badge-primary{% endif %}">
+                            Rank #{{ forloop.counter }} — {{ product.match_percentage }}% Match to Your Needs
+                        </span>
+                        <h2 style="margin-top:0.35rem;">
+                            <a href="{% url 'catalog:product_detail' product.slug %}" style="color:inherit; text-decoration:none;">
+                                {{ product.brand }} {{ product.name }}
+                            </a>
+                        </h2>
+                        <span class="text-muted" style="font-size:0.9rem;">Price: <strong>${{ product.price }}</strong></span>
+                    </div>
+
+                    <div style="text-align:right;">
+                        <div style="font-size:1.7rem; font-weight:800; color:var(--primary);">
+                            {{ product.weighted_score }} <span class="text-muted" style="font-size:0.95rem;">/ 10</span>
+                        </div>
+                        <div class="text-muted" style="font-size:0.82rem;">
+                            Unweighted Avg: {{ product.average_score|floatformat:1 }} ({{ product.review_count }} review{{ product.review_count|pluralize }})
+                        </div>
+                    </div>
+                </div>
+
+                <div class="score-bar-track">
+                    <div class="score-bar-fill" style="width: {{ product.match_percentage }}%;"></div>
+                </div>
+
+                {% if product.smart_summary %}
+                    <div class="summary-box">
+                        <strong>💡 Smart Summary:</strong> {{ product.smart_summary.verdict }}
+                        <div style="margin-top:0.4rem; display:flex; gap:1rem; flex-wrap:wrap;">
+                            {% if product.smart_summary.strengths %}
+                                <span style="color:var(--accent);">✓ Strengths: {{ product.smart_summary.strengths|join:", " }}</span>
+                            {% endif %}
+                            {% if product.smart_summary.tradeoffs %}
+                                <span style="color:var(--warning);">⚠ Trade-offs: {{ product.smart_summary.tradeoffs|join:", " }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endif %}
+
+                {% if product.criteria_breakdown %}
+                    <div class="grid-2" style="gap:0.75rem; margin:0.75rem 0;">
+                        {% for item in product.criteria_breakdown %}
+                            <div>
+                                <div class="flex-between" style="font-size:0.8rem;">
+                                    <span>{{ item.name }}</span>
+                                    <strong>{{ item.score }}/10</strong>
+                                </div>
+                                <div class="score-bar-track" style="height:6px; margin:0.2rem 0;">
+                                    <div class="score-bar-fill" style="width: {{ item.percentage }}%;"></div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                <div class="flex-between" style="margin-top:1rem;">
+                    <div style="display:flex; gap:0.5rem;">
+                        <a href="{% url 'catalog:product_detail' product.slug %}" class="btn btn-outline">🔍 Details & Reviews</a>
+                        <a href="{% url 'reviews:write_review' product.slug %}" class="btn btn-outline">✍️ Rate Criteria</a>
+                    </div>
+                    <a href="{% url 'record_decision' product.slug %}{% if query_string %}?{{ query_string }}{% endif %}" class="btn">
+                        ✓ Select & Record in Journal
+                    </a>
+                </div>
+            </div>
+        {% empty %}
+            <div class="card"><p>No products found in this category.</p></div>
+        {% endfor %}
+    </section>
+</div>
+{% endblock %}

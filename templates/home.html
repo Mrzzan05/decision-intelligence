@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard — Decision Intelligence Platform{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <h1>Multi-Criteria Decision Intelligence</h1>
+    <p>Move beyond simple star ratings. Weight the criteria that matter to you, analyze trade-offs, and log your decisions.</p>
+    <div style="display: flex; gap: 1rem; margin-top: 1.5rem; flex-wrap: wrap;">
+        <span class="badge badge-primary">{{ total_products }} Products Evaluated</span>
+        <span class="badge badge-primary">{{ total_reviews }} Expert & User Reviews</span>
+        <span class="badge badge-success">{{ total_decisions }} Recorded Decisions</span>
+    </div>
+</section>
+
+<h2 style="margin-bottom: 1.25rem;">Select a Category to Start Ranking</h2>
+
+<div class="grid-3">
+    {% for category in categories %}
+        <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+                <h3 style="font-size: 1.35rem; margin-bottom: 0.5rem;">{{ category.name }}</h3>
+                <p style="color: var(--muted); font-size: 0.92rem; margin-bottom: 1.25rem;">
+                    Compare {{ category.product_count }} products across {{ category.criteria_count }} specialized decision criteria.
+                </p>
+            </div>
+            <a href="{% url 'recommendations:category_recommendations' category.slug %}" class="btn btn-block">
+                Launch Decision Matrix →
+            </a>
+        </div>
+    {% empty %}
+        <div class="card">
+            <p>No categories found yet. Run <code>uv run python manage.py seed_data</code> to populate demo data!</p>
+        </div>
+    {% endfor %}
+</div>
+{% endblock %}

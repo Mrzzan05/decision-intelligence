@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block title %}Create Account — Decision Intelligence{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 520px; margin: 2rem auto;">
+    <h1 style="margin-bottom: 0.5rem;">Create Your Account</h1>
+    <p style="color: var(--muted); margin-bottom: 1.5rem;">Track your product evaluations, custom criteria weights, and decision outcomes.</p>
+
+    <form method="post" novalidate>
+        {% csrf_token %}
+        {% for field in form %}
+            <div style="margin-bottom: 1rem;">
+                <label for="{{ field.id_for_label }}" style="font-weight: 600; display: block; margin-bottom: 0.35rem;">
+                    {{ field.label }}
+                </label>
+                {{ field }}
+                {% for error in field.errors %}
+                    <div style="color: #dc2626; font-size: 0.85rem; margin-top: 0.25rem;">{{ error }}</div>
+                {% endfor %}
+            </div>
+        {% endfor %}
+        <button type="submit" class="btn btn-block" style="margin-top: 0.5rem;">Create Account</button>
+    </form>
+
+    <p style="margin-top: 1.25rem; text-align: center; font-size: 0.9rem; color: var(--muted);">
+        Already registered? <a href="{% url 'accounts:login' %}">Sign In</a>
+    </p>
+</div>
+{% endblock %}
