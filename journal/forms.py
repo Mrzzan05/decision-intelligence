@@ -14,30 +14,11 @@ class DecisionEntryForm(forms.ModelForm):
             "satisfaction_rating",
         ]
         widgets = {
-            "rationale": forms.Textarea(
-                attrs={
-                    "rows": 3,
-                    "placeholder": "Explain why this product best matched your weighted criteria...",
-                }
-            ),
-            "expected_outcome": forms.Textarea(
-                attrs={
-                    "rows": 2,
-                    "placeholder": "Pre-purchase expectation: What do you expect this product to achieve?",
-                }
-            ),
-            "expected_rating": forms.NumberInput(
-                attrs={"min": 1, "max": 10, "placeholder": "1 - 10 (Expected)"}
-            ),
-            "actual_experience": forms.Textarea(
-                attrs={
-                    "rows": 2,
-                    "placeholder": "Post-purchase reality: How did it actually perform over time?",
-                }
-            ),
-            "satisfaction_rating": forms.NumberInput(
-                attrs={"min": 1, "max": 10, "placeholder": "1 - 10 (Actual Outcome)"}
-            ),
+            "rationale": forms.Textarea(attrs={"rows": 3}),
+            "expected_outcome": forms.Textarea(attrs={"rows": 2}),
+            "expected_rating": forms.NumberInput(attrs={"min": 1, "max": 10}),
+            "actual_experience": forms.Textarea(attrs={"rows": 2}),
+            "satisfaction_rating": forms.NumberInput(attrs={"min": 1, "max": 10}),
         }
 
     def clean_rationale(self) -> str:

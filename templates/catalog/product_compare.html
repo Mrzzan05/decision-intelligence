@@ -1,71 +1,65 @@
 ﻿{% extends "base.html" %}
 
-{% block title %}Compare Products Side-by-Side{% endblock %}
+{% block title %}Compare Products{% endblock %}
 
 {% block content %}
-<h1>Side-by-Side Product Comparison</h1>
-<p class="text-muted" style="margin-bottom:1rem;">Select 2 to 4 products below to compare their prices, Smart Summaries, and criteria scores.</p>
+<h1>Same-Category Product Comparison</h1>
+{% if matrix.cross_category_warning %}
+    <div class="card">
+        <strong>Note:</strong> Only products from the same category ({{ matrix.category.name }}) can be compared side-by-side. Cross-category items were excluded.
+    </div>
+{% endif %}
 
 <form method="get" class="card">
     <div class="spec-pills">
         {% for prod in all_products %}
-            <label class="spec-pill" style="cursor:pointer;">
+            <label class="spec-pill">
                 <input type="checkbox" name="p" value="{{ prod.slug }}" {% if prod.slug in selected_slugs %}checked{% endif %}>
-                {{ prod.brand }} {{ prod.name }} (${{ prod.price }})
+                {{ prod.brand }} {{ prod.name }} ({{ prod.category.name }} - &dollar;{{ prod.price }})
             </label>
         {% endfor %}
     </div>
-    <button type="submit" class="btn" style="margin-top:0.75rem;">⚖️ Compare Selected Products</button>
+    <button type="submit" class="btn">Compare Selected (Max 4)</button>
 </form>
 
 {% if compared_products %}
-    <div class="card" style="overflow-x:auto;">
-        <table class="compare-table">
+    <div class="card">
+        <p>Identical specifications detected: <strong>{{ matrix.identical_spec_count }}</strong></p>
+        <table>
             <thead>
                 <tr>
-                    <th>Attribute / Metric</th>
+                    <th>Metric / Specification</th>
                     {% for prod in compared_products %}
-                        <th>
-                            <a href="{% url 'catalog:product_detail' prod.slug %}">{{ prod.brand }} {{ prod.name }}</a>
-                        </th>
+                        <th>{{ prod.brand }} {{ prod.name }} (&dollar;{{ prod.price }})</th>
                     {% endfor %}
                 </tr>
             </thead>
             <tbody>
                 <tr>
-                    <td><strong>Category</strong></td>
-                    {% for prod in compared_products %}<td>{{ prod.category.name }}</td>{% endfor %}
-                </tr>
-                <tr>
-                    <td><strong>Price</strong></td>
-                    {% for prod in compared_products %}<td><strong>${{ prod.price }}</strong></td>{% endfor %}
-                </tr>
-                <tr>
-                    <td><strong>Match Percentage</strong></td>
-                    {% for prod in compared_products %}
-                        <td><span class="badge badge-success">{{ prod.match_percentage }}% Match</span> ({{ prod.weighted_score }}/10)</td>
-                    {% endfor %}
-                </tr>
-                <tr>
-                    <td><strong>Smart Summary</strong></td>
+                    <td><strong>Match to Your Needs</strong></td>
                     {% for prod in compared_products %}
                         <td>
-                            {{ prod.smart_summary.verdict }}<br>
-                            <small style="color:var(--accent);">+ {{ prod.smart_summary.strengths|join:", "|default:"-" }}</small><br>
-                            <small style="color:var(--warning);">- {{ prod.smart_summary.tradeoffs|join:", "|default:"-" }}</small>
+                            {% if prod.has_sufficient_data %}
+                                <strong>{{ prod.match_percentage }}% Match</strong> ({{ prod.weighted_score }}/10)
+                            {% else %}
+                                Insufficient data
+                            {% endif %}
                         </td>
                     {% endfor %}
                 </tr>
-                <tr>
-                    <td><strong>Specifications</strong></td>
-                    {% for prod in compared_products %}
-                        <td>
-                            {% for k, v in prod.specs.items %}
-                                <div><strong>{{ k|title }}:</strong> {{ v }}</div>
+                {% for group in matrix.spec_groups %}
+                    {% for row in group.rows %}
+                        <tr class="{% if row.is_identical %}spec-identical-row{% endif %}">
+                            <td>{{ row.label }}</td>
+                            {% for cell in row.cells %}
+                                <td>
+                                    {{ cell.value }}
+                                    {% if cell.is_winner %}<strong>(Best)</strong>{% endif %}
+                                </td>
                             {% endfor %}
-                        </td>
+                        </tr>
                     {% endfor %}
-                </tr>
+                {% endfor %}
             </tbody>
         </table>
     </div>

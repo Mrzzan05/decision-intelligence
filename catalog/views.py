@@ -1,19 +1,18 @@
 ﻿from decimal import Decimal, InvalidOperation
 from django.contrib.auth.decorators import login_required
-from django.db.models import Avg
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.http import url_has_allowed_host_and_scheme
 
 from catalog.models import Category, Product, SavedProduct
-from recommendations.services import generate_smart_summary, rank_products_for_category
-from reviews.models import ReviewScore
+from recommendations.services import (
+    build_category_comparison_matrix,
+    parse_criteria_weights_from_params,
+    rank_products_for_category,
+)
 
 
 def product_search_view(request: HttpRequest) -> HttpResponse:
-    """
-    Search and filter products across categories by keyword, category,
-    price range, and minimum average review score.
-    """
     query = request.GET.get("q", "").strip()
     category_slug = request.GET.get("category", "").strip()
     raw_min_price = request.GET.get("min_price", "").strip()
@@ -66,45 +65,27 @@ def product_search_view(request: HttpRequest) -> HttpResponse:
 
 
 def product_detail_view(request: HttpRequest, product_slug: str) -> HttpResponse:
-    """
-    Display comprehensive product intelligence: specs, rule-based Smart Summary,
-    visual criteria score bars, and structured user reviews.
-    """
-    product = get_object_or_404(
-        Product.objects.select_related("category").with_average_scores(),
+    base_product = get_object_or_404(
+        Product.objects.select_related("category"),
         slug=product_slug,
     )
-    criteria_list = list(product.category.criteria.select_related("parent").all())
+    weights = parse_criteria_weights_from_params(request.GET)
+    ranked_products = rank_products_for_category(base_product.category, weights=weights)
+    product = next((p for p in ranked_products if p.id == base_product.id), base_product)
 
-    score_rows = (
-        ReviewScore.objects.filter(review__product=product)
-        .values("criteria_id")
-        .annotate(avg_score=Avg("score"))
-    )
-    score_map = {r["criteria_id"]: round(float(r["avg_score"]), 2) for r in score_rows}
-
-    criteria_breakdown = [
-        {
-            "name": c.name,
-            "parent_name": c.parent.name if c.parent else None,
-            "score": score_map.get(c.id, 0.0),
-            "percentage": int(round(score_map.get(c.id, 0.0) * 10)),
-        }
-        for c in criteria_list
-    ]
-    smart_summary = generate_smart_summary(criteria_list, score_map)
-    reviews = product.reviews.select_related("user").prefetch_related("scores__criteria")
+    reviews = base_product.reviews.select_related("user").prefetch_related("scores__criteria")
 
     is_saved = False
     if request.user.is_authenticated:
         is_saved = SavedProduct.objects.filter(
-            user=request.user, product=product
+            user=request.user, product=base_product
         ).exists()
 
     context = {
         "product": product,
-        "criteria_breakdown": criteria_breakdown,
-        "smart_summary": smart_summary,
+        "criteria_breakdown": getattr(product, "criteria_breakdown", []),
+        "smart_summary": getattr(product, "smart_summary", {}),
+        "normalized_specs": product.get_normalized_specs(),
         "reviews": reviews,
         "is_saved": is_saved,
     }
@@ -112,37 +93,30 @@ def product_detail_view(request: HttpRequest, product_slug: str) -> HttpResponse
 
 
 def product_compare_view(request: HttpRequest) -> HttpResponse:
-    """
-    Side-by-side comparison of selected products (via ?p=slug1&p=slug2).
-    """
     slugs = request.GET.getlist("p")
-    selected_products = list(
-        Product.objects.filter(slug__in=slugs)
-        .select_related("category")
-        .with_average_scores()
-    )
+    weights = parse_criteria_weights_from_params(request.GET)
 
-    # Enrich each product with Smart Summary and criteria scores
-    categories_seen = {p.category for p in selected_products}
-    for cat in categories_seen:
-        ranked = rank_products_for_category(cat)
-        ranked_map = {rp.id: rp for rp in ranked}
-        for idx, sp in enumerate(selected_products):
-            if sp.id in ranked_map:
-                selected_products[idx] = ranked_map[sp.id]
+    fetched_map = {
+        p.slug: p
+        for p in Product.objects.filter(slug__in=slugs).select_related("category")
+    }
+    ordered_selected = [fetched_map[s] for s in slugs if s in fetched_map]
 
+    matrix = build_category_comparison_matrix(ordered_selected, weights=weights)
     all_products = Product.objects.select_related("category").all()
+
     context = {
-        "compared_products": selected_products,
+        "matrix": matrix,
+        "compared_products": matrix["products"],
         "all_products": all_products,
-        "selected_slugs": slugs,
+        "selected_slugs": [p.slug for p in matrix["products"]],
     }
     return render(request, "catalog/product_compare.html", context)
 
 
 @login_required
 def toggle_saved_product_view(request: HttpRequest, product_slug: str) -> HttpResponse:
-    """Bookmark or unbookmark a product for the logged-in user's dashboard."""
+    """Bookmark or unbookmark a product, protecting against Open Redirect attacks."""
     product = get_object_or_404(Product, slug=product_slug)
     if request.method == "POST":
         existing = SavedProduct.objects.filter(user=request.user, product=product)
@@ -150,7 +124,13 @@ def toggle_saved_product_view(request: HttpRequest, product_slug: str) -> HttpRe
             existing.delete()
         else:
             SavedProduct.objects.create(user=request.user, product=product)
-    next_url = request.POST.get("next") or "catalog:product_detail"
-    if next_url.startswith("/"):
-        return redirect(next_url)
+
+    raw_next = request.POST.get("next", "")
+    if raw_next and url_has_allowed_host_and_scheme(
+        url=raw_next,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return redirect(raw_next)
+
     return redirect("catalog:product_detail", product_slug=product.slug)

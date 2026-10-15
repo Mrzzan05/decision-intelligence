@@ -13,15 +13,11 @@ def create_or_update_review_view(
     request: HttpRequest,
     product_slug: str,
 ) -> HttpResponse:
-    """
-    Allow an authenticated user to create or edit their structured review
-    (including per-criteria 1..10 scores, pros, cons, and comment) for a product.
-    """
     product = get_object_or_404(
         Product.objects.select_related("category"),
         slug=product_slug,
     )
-    criteria_list = list(product.category.criteria.all())
+    criteria_list = list(product.category.criteria.select_related("parent").all())
     existing_review = Review.objects.filter(
         user=request.user, product=product
     ).first()
@@ -80,7 +76,6 @@ def create_or_update_review_view(
 
 @login_required
 def delete_review_view(request: HttpRequest, product_slug: str) -> HttpResponse:
-    """Allow a user to delete their own review on a product via POST."""
     product = get_object_or_404(Product, slug=product_slug)
     if request.method == "POST":
         Review.objects.filter(user=request.user, product=product).delete()

@@ -4,55 +4,51 @@
 
 {% block content %}
 <h1>Search & Filter Catalog</h1>
-<p class="text-muted" style="margin-bottom:1.25rem;">Filter by keyword, category, budget range, and minimum review score.</p>
-
-<form method="get" class="card" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap:1rem; align-items:end;">
-    <div>
-        <label>Keyword</label>
-        <input type="text" name="q" value="{{ query }}" placeholder="Brand, model, spec...">
-    </div>
-    <div>
-        <label>Category</label>
-        <select name="category">
-            <option value="">All Categories</option>
-            {% for cat in categories %}
-                <option value="{{ cat.slug }}" {% if selected_category == cat.slug %}selected{% endif %}>{{ cat.name }}</option>
-            {% endfor %}
-        </select>
-    </div>
-    <div>
-        <label>Min Price ($)</label>
-        <input type="number" name="min_price" value="{{ min_price }}" placeholder="0">
-    </div>
-    <div>
-        <label>Max Price ($)</label>
-        <input type="number" name="max_price" value="{{ max_price }}" placeholder="2500">
-    </div>
-    <div>
-        <label>Min Score (1-10)</label>
-        <input type="number" step="0.5" min="1" max="10" name="min_score" value="{{ min_score }}" placeholder="7.0">
-    </div>
-    <div>
-        <button type="submit" class="btn btn-block">Apply Filters</button>
+<form method="get" class="card">
+    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap:1rem; align-items:end;">
+        <div>
+            <label>Keyword</label>
+            <input type="text" name="q" value="{{ query }}" placeholder="Brand, model, spec...">
+        </div>
+        <div>
+            <label>Category</label>
+            <select name="category">
+                <option value="">All Categories</option>
+                {% for cat in categories %}
+                    <option value="{{ cat.slug }}" {% if selected_category == cat.slug %}selected{% endif %}>{{ cat.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label>Min Price (USD)</label>
+            <input type="number" name="min_price" value="{{ min_price }}" placeholder="0">
+        </div>
+        <div>
+            <label>Max Price (USD)</label>
+            <input type="number" name="max_price" value="{{ max_price }}" placeholder="2500">
+        </div>
+        <div>
+            <label>Min Score (1-10)</label>
+            <input type="number" step="0.5" min="1" max="10" name="min_score" value="{{ min_score }}" placeholder="7.0">
+        </div>
+        <div>
+            <button type="submit" class="btn btn-block">Apply Filters</button>
+        </div>
     </div>
 </form>
 
 <div class="grid-3">
     {% for product in products %}
-        <div class="card flex-between" style="flex-direction:column; align-items:stretch;">
-            <div>
-                <div class="flex-between">
-                    <span class="badge badge-primary">{{ product.category.name }}</span>
-                    <strong>${{ product.price }}</strong>
-                </div>
-                <h3 style="margin:0.5rem 0;">{{ product.brand }} {{ product.name }}</h3>
-                <p class="text-muted" style="font-size:0.88rem; margin-bottom:0.75rem;">{{ product.description|default:"No description provided." }}</p>
-                <p style="font-size:0.9rem;">Avg Score: <strong>{{ product.average_score|floatformat:1 }} / 10</strong> ({{ product.review_count }} reviews)</p>
-            </div>
-            <div class="flex-between" style="margin-top:1rem;">
-                <a href="{% url 'catalog:product_detail' product.slug %}" class="btn btn-outline">View Details</a>
-                <a href="{% url 'record_decision' product.slug %}" class="btn">Choose</a>
-            </div>
+        <div class="card">
+            <span class="badge badge-primary">{{ product.category.name }}</span>
+            <h3><a href="{% url 'catalog:product_detail' product.slug %}">{{ product.brand }} {{ product.name }}</a></h3>
+            <p>Price: <strong>&dollar;{{ product.price }}</strong></p>
+            <p>{{ product.description }}</p>
+            {% if product.review_count > 0 %}
+                <p>Avg Score: <strong>{{ product.average_score|floatformat:1 }} / 10</strong> ({{ product.review_count }} reviews)</p>
+            {% else %}
+                <p><em>Insufficient data (0 reviews)</em></p>
+            {% endif %}
         </div>
     {% empty %}
         <div class="card"><p>No products matched your filter criteria.</p></div>

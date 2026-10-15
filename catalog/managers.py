@@ -42,8 +42,3 @@ class ProductQuerySet(models.QuerySet):
             ),
             review_count=Count("reviews", distinct=True),
         )
-
-    def by_min_score(self, min_score: float | None = None) -> Self:
-        if min_score is None:
-            return self
-        return self.with_average_scores().filter(average_score__gte=min_score)

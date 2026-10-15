@@ -24,33 +24,19 @@ class DecisionEntry(TimeStampedModel):
         on_delete=models.PROTECT,
         related_name="chosen_in_decisions",
     )
-    weights_snapshot = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="Snapshot of criteria weights at the moment the decision was made.",
-    )
-    rationale = models.TextField(
-        help_text="Why this product was selected over alternatives.",
-    )
-    expected_outcome = models.TextField(
-        blank=True,
-        help_text="What the user expects before buying/using the product.",
-    )
+    weights_snapshot = models.JSONField(default=dict, blank=True)
+    rationale = models.TextField()
+    expected_outcome = models.TextField(blank=True)
     expected_rating = models.PositiveSmallIntegerField(
         null=True,
         blank=True,
         validators=[MinValueValidator(1), MaxValueValidator(10)],
-        help_text="Pre-purchase expected satisfaction (1 to 10).",
     )
-    actual_experience = models.TextField(
-        blank=True,
-        help_text="Real-world experience recorded weeks or months after the decision.",
-    )
+    actual_experience = models.TextField(blank=True)
     satisfaction_rating = models.PositiveSmallIntegerField(
         null=True,
         blank=True,
         validators=[MinValueValidator(1), MaxValueValidator(10)],
-        help_text="Optional post-decision outcome score (1 to 10) recorded later.",
     )
 
     class Meta:
@@ -61,10 +47,7 @@ class DecisionEntry(TimeStampedModel):
             models.CheckConstraint(
                 condition=(
                     Q(satisfaction_rating__isnull=True)
-                    | (
-                        Q(satisfaction_rating__gte=1)
-                        & Q(satisfaction_rating__lte=10)
-                    )
+                    | (Q(satisfaction_rating__gte=1) & Q(satisfaction_rating__lte=10))
                 ),
                 name="journal_satisfaction_between_1_and_10_or_null",
             )
@@ -72,7 +55,6 @@ class DecisionEntry(TimeStampedModel):
 
     @property
     def expectation_gap(self) -> int | None:
-        """Difference between actual post-purchase satisfaction and initial expectation."""
         if self.satisfaction_rating is not None and self.expected_rating is not None:
             return self.satisfaction_rating - self.expected_rating
         return None
@@ -91,4 +73,4 @@ class DecisionEntry(TimeStampedModel):
                 )
 
     def __str__(self) -> str:
-        return f"{self.user} chose {self.chosen_product} ({self.category.name})"
+        return f"{self.user.display_name} chose {self.chosen_product} ({self.category.name})"

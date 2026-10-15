@@ -1,4 +1,6 @@
-﻿from django.conf import settings
+﻿from typing import Any
+from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
 
 from catalog.managers import ProductQuerySet
@@ -6,19 +8,58 @@ from core.models import TimeStampedModel
 
 
 class Category(TimeStampedModel):
+    """
+    Product category defining evaluation criteria, a normalized specification schema,
+    and priority presets (e.g., Gamer, Photographer, Daily User).
+    """
+
     name = models.CharField(max_length=100, unique=True)
     slug = models.SlugField(max_length=120, unique=True)
+    spec_schema = models.JSONField(
+        default=list,
+        blank=True,
+        help_text=(
+            "List of normalized spec definitions: "
+            "[{'key': 'ram_gb', 'label': 'RAM', 'unit': 'GB', 'higher_is_better': True, 'group': 'Performance'}]"
+        ),
+    )
+    presets = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Named weight presets for quick user persona selection.",
+    )
 
     class Meta:
         verbose_name = "Category"
         verbose_name_plural = "Categories"
         ordering = ["name"]
 
+    def clean(self) -> None:
+        super().clean()
+        if not isinstance(self.spec_schema, list):
+            raise ValidationError({"spec_schema": "spec_schema must be a list of dictionaries."})
+        required_keys = {"key", "label", "unit", "higher_is_better", "group"}
+        for item in self.spec_schema:
+            if not isinstance(item, dict) or not required_keys.issubset(item.keys()):
+                raise ValidationError(
+                    {
+                        "spec_schema": (
+                            "Each schema item must contain: key, label, unit, higher_is_better, group."
+                        )
+                    }
+                )
+
     def __str__(self) -> str:
         return self.name
 
 
 class Criteria(TimeStampedModel):
+    """
+    Evaluation dimension for a Category.
+    Top-level criteria (parent=None) carry user weights in the ranking engine.
+    Sub-criteria (parent!=None) provide granular diagnostics for Smart Summaries.
+    """
+
     category = models.ForeignKey(
         Category,
         on_delete=models.CASCADE,
@@ -64,20 +105,14 @@ class Product(TimeStampedModel):
         max_digits=10,
         decimal_places=2,
         default=0.00,
-        help_text="Approximate market price in USD.",
+        help_text="Market price in USD.",
     )
-    description = models.TextField(
-        blank=True,
-        help_text="Executive summary of the product's positioning and target user.",
-    )
-    image_url = models.URLField(
-        blank=True,
-        help_text="Optional product image URL.",
-    )
+    description = models.TextField(blank=True)
+    image_url = models.URLField(blank=True)
     specs = models.JSONField(
         default=dict,
         blank=True,
-        help_text="Flexible key-value technical specifications (stored as PostgreSQL JSONB).",
+        help_text="Normalized key-value technical specifications matching category.spec_schema.",
     )
 
     objects = ProductQuerySet.as_manager()
@@ -87,13 +122,38 @@ class Product(TimeStampedModel):
         verbose_name_plural = "Products"
         ordering = ["brand", "name"]
 
+    def get_normalized_specs(self) -> list[dict[str, Any]]:
+        """Return product specifications ordered and formatted by category.spec_schema."""
+        schema = self.category.spec_schema or []
+        if not schema:
+            return [
+                {"key": k, "label": k.replace("_", " ").title(), "value": v, "unit": "", "group": "General"}
+                for k, v in (self.specs or {}).items()
+            ]
+        normalized = []
+        for field_def in schema:
+            key = field_def["key"]
+            raw_val = (self.specs or {}).get(key)
+            unit = field_def.get("unit", "")
+            display_val = f"{raw_val} {unit}".strip() if raw_val is not None else "—"
+            normalized.append(
+                {
+                    "key": key,
+                    "label": field_def["label"],
+                    "raw_value": raw_val,
+                    "display_value": display_val,
+                    "unit": unit,
+                    "higher_is_better": field_def.get("higher_is_better"),
+                    "group": field_def.get("group", "General"),
+                }
+            )
+        return normalized
+
     def __str__(self) -> str:
         return f"{self.brand} {self.name}"
 
 
 class SavedProduct(TimeStampedModel):
-    """Bookmarks/favorites allowing users to shortlist products for later decision-making."""
-
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -117,4 +177,4 @@ class SavedProduct(TimeStampedModel):
         ]
 
     def __str__(self) -> str:
-        return f"{self.user} saved {self.product}"
+        return f"{self.user.username} saved {self.product}"

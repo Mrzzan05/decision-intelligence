@@ -18,16 +18,8 @@ urlpatterns = [
     path("recommendations/", include("recommendations.urls")),
     path("dashboard/", dashboard_view, name="dashboard"),
     path("journal/", journal_list_view, name="journal_list"),
-    path(
-        "journal/record/<slug:product_slug>/",
-        record_decision_view,
-        name="record_decision",
-    ),
-    path(
-        "journal/update/<int:entry_id>/",
-        update_decision_experience_view,
-        name="update_decision",
-    ),
+    path("journal/record/<slug:product_slug>/", record_decision_view, name="record_decision"),
+    path("journal/update/<int:entry_id>/", update_decision_experience_view, name="update_decision"),
     path("admin/", admin.site.urls),
 ]
 

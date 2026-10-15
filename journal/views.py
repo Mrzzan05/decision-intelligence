@@ -35,6 +35,7 @@ def record_decision_view(request: HttpRequest, product_slug: str) -> HttpRespons
     weight_hidden_fields = {
         f"weight_{crit.id}": parsed_weights.get(crit.id, 5.0)
         for crit in product.category.criteria.all()
+        if crit.parent_id is None
     }
 
     if request.method == "POST":
@@ -64,10 +65,6 @@ def update_decision_experience_view(
     request: HttpRequest,
     entry_id: int,
 ) -> HttpResponse:
-    """
-    Allow a user to revisit a past decision months later and log their
-    actual post-purchase experience and satisfaction rating.
-    """
     entry = get_object_or_404(
         DecisionEntry.objects.select_related("category", "chosen_product"),
         pk=entry_id,
@@ -94,10 +91,6 @@ def update_decision_experience_view(
 
 @login_required
 def dashboard_view(request: HttpRequest) -> HttpResponse:
-    """
-    Personal & Analytical Dashboard combining Saved Products, User Reviews,
-    and Expectation vs. Reality Decision Analytics.
-    """
     decisions = list(
         DecisionEntry.objects.filter(user=request.user)
         .select_related("category", "chosen_product")

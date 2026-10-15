@@ -1,43 +1,20 @@
 ﻿{% extends "base.html" %}
 
-{% block title %}Rate & Review — {{ product }}{% endblock %}
+{% block title %}Review {{ product }}{% endblock %}
 
 {% block content %}
-<div class="card" style="max-width:720px; margin:0 auto;">
-    <h1>{% if is_editing %}Edit Your Review{% else %}Submit Structured Review{% endif %}: {{ product }}</h1>
-    <p class="text-muted" style="margin-bottom:1.25rem;">Score each category criterion from 1 to 10 and share your pros & cons.</p>
-
-    {% if criteria_errors or form.errors %}
-        <div style="background:#fef2f2; color:#991b1b; padding:1rem; border-radius:8px; margin-bottom:1rem;">
-            {% for err in criteria_errors %}<div>• {{ err }}</div>{% endfor %}
-            {% for field in form %}{% for err in field.errors %}<div>• {{ field.label }}: {{ err }}</div>{% endfor %}{% endfor %}
-        </div>
-    {% endif %}
-
+<div class="card">
+    <h1>{% if is_editing %}Edit Review{% else %}Write Review{% endif %}: {{ product }}</h1>
     <form method="post">
         {% csrf_token %}
-        <h3>1. Per-Criteria Scores (1 to 10)</h3>
-        <div class="grid-2" style="margin:0.75rem 0 1.5rem 0;">
-            {% for crit in criteria_list %}
-                <div>
-                    <label for="criteria_{{ crit.id }}"><strong>{{ crit.name }}</strong></label>
-                    <input type="number" id="criteria_{{ crit.id }}" name="criteria_{{ crit.id }}" min="1" max="10" value="{{ crit.initial_score }}" required>
-                </div>
-            {% endfor %}
-        </div>
-
-        <h3>2. Written Evaluation & Pros/Cons</h3>
-        {% for field in form %}
-            <div style="margin-top:0.85rem;">
-                <label for="{{ field.id_for_label }}"><strong>{{ field.label }}</strong></label>
-                {{ field }}
+        {% for crit in criteria_list %}
+            <div>
+                <label for="criteria_{{ crit.id }}">{{ crit.name }}</label>
+                <input type="number" id="criteria_{{ crit.id }}" name="criteria_{{ crit.id }}" min="1" max="10" value="{{ crit.initial_score }}" required>
             </div>
         {% endfor %}
-
-        <div style="margin-top:1.5rem; display:flex; gap:1rem;">
-            <button type="submit" class="btn">💾 Save Structured Review</button>
-            <a href="{% url 'catalog:product_detail' product.slug %}" class="btn btn-outline">Cancel</a>
-        </div>
+        {{ form.as_p }}
+        <button type="submit" class="btn">Save Review</button>
     </form>
 </div>
 {% endblock %}

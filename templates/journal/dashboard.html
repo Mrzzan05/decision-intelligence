@@ -1,57 +1,18 @@
 ﻿{% extends "base.html" %}
 
-{% block title %}Personal & Analytical Dashboard{% endblock %}
+{% block title %}Decision Dashboard{% endblock %}
 
 {% block content %}
 <h1>Personal & Analytical Decision Dashboard</h1>
-<p class="text-muted" style="margin-bottom:1.5rem;">Overview of your saved shortlist, review contributions, and expectation accuracy.</p>
-
-<div class="grid-3" style="margin-bottom:1.5rem;">
-    <div class="card">
-        <span class="text-muted">Logged Decisions</span>
-        <h2 style="font-size:2rem; color:var(--primary);">{{ decision_count }}</h2>
-    </div>
-    <div class="card">
-        <span class="text-muted">Avg Expected Score (Pre-Purchase)</span>
-        <h2 style="font-size:2rem;">{{ avg_expected }} / 10</h2>
-        <div class="score-bar-track"><div class="score-bar-fill" style="width: {% widthratio avg_expected 10 100 %}%;"></div></div>
-    </div>
-    <div class="card">
-        <span class="text-muted">Avg Actual Satisfaction (Post-Purchase)</span>
-        <h2 style="font-size:2rem; color:var(--accent);">{{ avg_actual }} / 10</h2>
-        <div class="score-bar-track"><div class="score-bar-fill" style="width: {% widthratio avg_actual 10 100 %}%;"></div></div>
-    </div>
+<div class="grid-3">
+    <div class="card"><h3>Logged Decisions: {{ decision_count }}</h3></div>
+    <div class="card"><h3>Avg Expected: {{ avg_expected }}/10</h3></div>
+    <div class="card"><h3>Avg Actual: {{ avg_actual }}/10</h3></div>
 </div>
-
-<div class="grid-2">
-    <div class="card">
-        <h3>★ Saved Products Shortlist ({{ saved_products.count }})</h3>
-        {% for item in saved_products %}
-            <div class="flex-between" style="padding:0.65rem 0; border-bottom:1px solid var(--border);">
-                <div>
-                    <a href="{% url 'catalog:product_detail' item.product.slug %}"><strong>{{ item.product }}</strong></a>
-                    <span class="text-muted">(${{ item.product.price }})</span>
-                </div>
-                <a href="{% url 'record_decision' item.product.slug %}" class="btn btn-outline" style="padding:0.25rem 0.6rem;">Decide</a>
-            </div>
-        {% empty %}
-            <p class="text-muted" style="margin-top:0.5rem;">No bookmarked products yet.</p>
-        {% endfor %}
-    </div>
-
-    <div class="card">
-        <h3>✍️ My Product Reviews ({{ user_reviews.count }})</h3>
-        {% for rev in user_reviews %}
-            <div class="flex-between" style="padding:0.65rem 0; border-bottom:1px solid var(--border);">
-                <div>
-                    <a href="{% url 'catalog:product_detail' rev.product.slug %}"><strong>{{ rev.product }}</strong></a>
-                    <span class="badge badge-primary">{{ rev.overall_rating }}/10</span>
-                </div>
-                <a href="{% url 'reviews:write_review' rev.product.slug %}" class="btn btn-outline" style="padding:0.25rem 0.6rem;">Edit</a>
-            </div>
-        {% empty %}
-            <p class="text-muted" style="margin-top:0.5rem;">You haven't reviewed any products yet.</p>
-        {% endfor %}
-    </div>
+<div class="card">
+    <h3>Saved Products ({{ saved_products.count }})</h3>
+    {% for item in saved_products %}
+        <p>{{ item.product }} (&dollar;{{ item.product.price }})</p>
+    {% endfor %}
 </div>
 {% endblock %}

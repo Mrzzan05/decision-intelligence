@@ -4,87 +4,57 @@
 
 {% block content %}
 <div class="card">
-    <div class="flex-between">
-        <div>
-            <span class="badge badge-primary">{{ product.category.name }}</span>
-            <h1 style="margin-top:0.35rem;">{{ product.brand }} {{ product.name }}</h1>
-            <p class="text-muted">Market Price: <strong>${{ product.price }}</strong> | Overall Avg: <strong>{{ product.average_score|floatformat:1 }}/10</strong></p>
-        </div>
-        <div style="display:flex; gap:0.6rem; flex-wrap:wrap;">
-            {% if user.is_authenticated %}
-                <form method="post" action="{% url 'catalog:toggle_saved_product' product.slug %}">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-outline">
-                        {% if is_saved %}★ Saved in Dashboard{% else %}☆ Save Product{% endif %}
-                    </button>
-                </form>
-            {% endif %}
-            <a href="{% url 'reviews:write_review' product.slug %}" class="btn btn-outline">✍️ Write / Edit My Review</a>
-            <a href="{% url 'record_decision' product.slug %}" class="btn">✓ Log Decision</a>
-        </div>
-    </div>
+    <span class="badge badge-primary">{{ product.category.name }}</span>
+    <h1>{{ product.brand }} {{ product.name }}</h1>
+    <p>Price: <strong>&dollar;{{ product.price }}</strong> | {{ smart_summary.basis_text }}</p>
 
-    {% if product.description %}
-        <p style="margin-top:1rem;">{{ product.description }}</p>
-    {% endif %}
-
-    <div class="summary-box" style="margin-top:1.25rem;">
-        <h3>💡 Rule-Based Smart Summary</h3>
-        <p>{{ smart_summary.verdict }}</p>
-        <div style="margin-top:0.5rem;">
-            <strong style="color:var(--accent);">Strengths:</strong> {{ smart_summary.strengths|join:", "|default:"Not enough scores yet" }}<br>
-            <strong style="color:var(--warning);">Trade-offs:</strong> {{ smart_summary.tradeoffs|join:", "|default:"None identified" }}
-        </div>
-    </div>
-
-    <h3 style="margin-top:1.5rem;">📊 Criteria Performance Chart</h3>
-    <div class="grid-2" style="margin-top:0.75rem;">
-        {% for item in criteria_breakdown %}
-            <div>
-                <div class="flex-between" style="font-size:0.9rem;">
-                    <span>{% if item.parent_name %}{{ item.parent_name }} → {% endif %}{{ item.name }}</span>
-                    <strong>{{ item.score }} / 10</strong>
-                </div>
-                <div class="score-bar-track">
-                    <div class="score-bar-fill" style="width: {{ item.percentage }}%;"></div>
-                </div>
-            </div>
-        {% endfor %}
-    </div>
-
-    {% if product.specs %}
-        <h3 style="margin-top:1.25rem;">Technical Specifications (JSONB)</h3>
-        <div class="spec-pills">
-            {% for k, v in product.specs.items %}
-                <span class="spec-pill"><strong>{{ k|title }}:</strong> {{ v }}</span>
-            {% endfor %}
-        </div>
-    {% endif %}
-</div>
-
-<h2>User & Benchmark Reviews ({{ reviews.count }})</h2>
-{% for rev in reviews %}
-    <div class="card">
-        <div class="flex-between">
-            <strong>{{ rev.user.email }}</strong>
-            <span class="badge badge-primary">Overall Rating: {{ rev.overall_rating }} / 10</span>
-        </div>
-        {% if rev.pros %}<p style="color:var(--accent); margin-top:0.5rem;"><strong>+ Pros:</strong> {{ rev.pros }}</p>{% endif %}
-        {% if rev.cons %}<p style="color:var(--warning);"><strong>- Cons:</strong> {{ rev.cons }}</p>{% endif %}
-        {% if rev.comment %}<p style="margin-top:0.5rem;">{{ rev.comment }}</p>{% endif %}
-        <div class="spec-pills">
-            {% for s in rev.scores.all %}
-                <span class="spec-pill">{{ s.criteria.name }}: <strong>{{ s.score }}/10</strong></span>
-            {% endfor %}
-        </div>
-        {% if user == rev.user %}
-            <form method="post" action="{% url 'reviews:delete_review' product.slug %}" style="margin-top:0.5rem;">
+    <div style="margin:1rem 0; display:flex; gap:0.75rem; flex-wrap:wrap;">
+        {% if user.is_authenticated %}
+            <form method="post" action="{% url 'catalog:toggle_saved_product' product.slug %}">
                 {% csrf_token %}
-                <button type="submit" class="btn btn-danger" style="padding:0.3rem 0.7rem; font-size:0.8rem;">Delete My Review</button>
+                <button type="submit" class="btn btn-outline">
+                    {% if is_saved %}Saved in Dashboard{% else %}Save Product{% endif %}
+                </button>
             </form>
         {% endif %}
+        <a href="{% url 'reviews:write_review' product.slug %}" class="btn btn-outline">Write / Edit Review</a>
+        <a href="{% url 'record_decision' product.slug %}" class="btn">Log Decision</a>
+    </div>
+
+    <div class="card">
+        <h3>Smart Summary ({{ smart_summary.basis_text }})</h3>
+        <p>{{ smart_summary.verdict }}</p>
+        <ul>
+            {% for p_item in smart_summary.pros %}
+                <li>+ {{ p_item }}</li>
+            {% endfor %}
+            {% for m_item in smart_summary.mixed %}
+                <li>&plusmn; {{ m_item }}</li>
+            {% endfor %}
+            {% for c_item in smart_summary.cons %}
+                <li>&minus; {{ c_item }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <h3>Normalized Specifications</h3>
+    <div class="spec-pills">
+        {% for spec in normalized_specs %}
+            <span class="spec-pill"><strong>{{ spec.label }}:</strong> {{ spec.display_value }}</span>
+        {% endfor %}
+    </div>
+</div>
+
+<h2>Community Reviews ({{ reviews.count }})</h2>
+{% for rev in reviews %}
+    <div class="card">
+        <strong>Reviewer: {{ rev.user.display_name }}</strong>
+        <span class="badge badge-primary">Overall: {{ rev.overall_rating }}/10</span>
+        {% if rev.pros %}<p>+ Pros: {{ rev.pros }}</p>{% endif %}
+        {% if rev.cons %}<p>- Cons: {{ rev.cons }}</p>{% endif %}
+        {% if rev.comment %}<p>{{ rev.comment }}</p>{% endif %}
     </div>
 {% empty %}
-    <div class="card"><p>No reviews yet. Be the first to rate this product!</p></div>
+    <div class="card"><p>No reviews yet.</p></div>
 {% endfor %}
 {% endblock %}

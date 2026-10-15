@@ -12,36 +12,60 @@ User = get_user_model()
 
 
 class Command(BaseCommand):
-    help = "Populate PostgreSQL with complete demo data for all 8 platform features."
+    help = "Seed normalized spec_schema, priority presets, multi-reviewer consensus data, and journal entries."
 
     @transaction.atomic
     def handle(self, *args, **options) -> None:
         admin_user, created = User.objects.get_or_create(
             email="admin@example.com",
-            defaults={"username": "admin", "is_staff": True, "is_superuser": True},
+            defaults={"username": "admin", "first_name": "Mehrsan", "is_staff": True, "is_superuser": True},
         )
         if created:
             admin_user.set_password("admin1234")
             admin_user.save()
 
-        reviewer_user, _ = User.objects.get_or_create(
-            email="reviewer@example.com",
-            defaults={"username": "tech_reviewer"},
+        reviewers = []
+        for idx in range(1, 6):
+            u, _ = User.objects.get_or_create(
+                email=f"reviewer{idx}@example.com",
+                defaults={"username": f"analyst_{idx}", "first_name": f"Reviewer {idx}"},
+            )
+            reviewers.append(u)
+
+        laptop_schema = [
+            {"key": "cpu", "label": "Processor", "unit": "", "higher_is_better": None, "group": "Performance"},
+            {"key": "gpu", "label": "Graphics Card", "unit": "", "higher_is_better": None, "group": "Performance"},
+            {"key": "ram_gb", "label": "Memory (RAM)", "unit": "GB", "higher_is_better": True, "group": "Performance"},
+            {"key": "storage_gb", "label": "SSD Storage", "unit": "GB", "higher_is_better": True, "group": "Storage"},
+            {"key": "battery_wh", "label": "Battery Capacity", "unit": "Wh", "higher_is_better": True, "group": "Mobility"},
+            {"key": "weight_kg", "label": "Weight", "unit": "kg", "higher_is_better": False, "group": "Mobility"},
+        ]
+
+        laptops, _ = Category.objects.update_or_create(
+            slug="laptops",
+            defaults={
+                "name": "Laptops & Ultrabooks",
+                "spec_schema": laptop_schema,
+                "presets": {
+                    "gamer": {"label": "AI & Gaming", "weights": {"GPU & AI Performance": 10, "Cooling & Thermals": 9, "Battery Life": 3, "Portability": 4}},
+                    "traveler": {"label": "Mobile & Study", "weights": {"Battery Life": 10, "Portability": 10, "Cooling & Thermals": 6, "GPU & AI Performance": 3}},
+                    "daily": {"label": "Balanced Daily", "weights": {"Battery Life": 7, "Portability": 7, "Cooling & Thermals": 7, "GPU & AI Performance": 7}},
+                },
+            },
         )
 
-        # 1. Category: Laptops
-        laptops, _ = Category.objects.get_or_create(
-            slug="laptops", defaults={"name": "Laptops & Ultrabooks"}
-        )
         UserPreference.objects.update_or_create(
             user=admin_user,
-            defaults={"preferred_category": laptops, "default_budget": Decimal("1400.00"), "dark_mode": False},
+            defaults={"preferred_category": laptops, "default_budget": Decimal("1400.00"), "theme_mode": "system"},
         )
 
         c_gpu, _ = Criteria.objects.get_or_create(category=laptops, name="GPU & AI Performance")
         c_bat, _ = Criteria.objects.get_or_create(category=laptops, name="Battery Life")
         c_therm, _ = Criteria.objects.get_or_create(category=laptops, name="Cooling & Thermals")
         c_port, _ = Criteria.objects.get_or_create(category=laptops, name="Portability")
+        c_fan_noise, _ = Criteria.objects.update_or_create(
+            category=laptops, name="Fan Acoustics Under Load", defaults={"parent": c_therm}
+        )
 
         loq, _ = Product.objects.update_or_create(
             slug="lenovo-loq-15irh8",
@@ -50,12 +74,14 @@ class Command(BaseCommand):
                 "brand": "Lenovo",
                 "name": "LOQ 15IRH8",
                 "price": Decimal("950.00"),
-                "description": "High-value engineering and gaming laptop featuring dedicated RTX 4050 graphics and dual-fan thermal dissipation.",
+                "description": "Engineering and gaming laptop with dedicated RTX 4050 GPU.",
                 "specs": {
                     "cpu": "Intel Core i7-13620H",
                     "gpu": "NVIDIA RTX 4050 6GB",
-                    "ram": "16GB DDR5",
-                    "storage": "512GB NVMe SSD",
+                    "ram_gb": 16,
+                    "storage_gb": 512,
+                    "battery_wh": 60,
+                    "weight_kg": 2.4,
                 },
             },
         )
@@ -66,12 +92,14 @@ class Command(BaseCommand):
                 "brand": "Lenovo",
                 "name": "ThinkPad X1 Carbon Gen 11",
                 "price": Decimal("1650.00"),
-                "description": "Ultra-lightweight carbon-fiber executive notebook built for all-day battery endurance and typing comfort.",
+                "description": "Ultra-light executive notebook built for mobility and typing.",
                 "specs": {
                     "cpu": "Intel Core i7-1355U",
                     "gpu": "Intel Iris Xe",
-                    "ram": "32GB LPDDR5",
-                    "weight": "1.12 kg",
+                    "ram_gb": 16,
+                    "storage_gb": 512,
+                    "battery_wh": 57,
+                    "weight_kg": 1.12,
                 },
             },
         )
@@ -82,116 +110,67 @@ class Command(BaseCommand):
                 "brand": "Apple",
                 "name": "MacBook Air 15 (M3)",
                 "price": Decimal("1299.00"),
-                "description": "Fanless Apple Silicon laptop combining silent operation, 18-hour battery life, and high unified memory bandwidth.",
+                "description": "Fanless Apple Silicon notebook with 18-hour battery endurance.",
                 "specs": {
                     "cpu": "Apple M3 (8-Core)",
-                    "gpu": "10-Core Integrated",
-                    "ram": "16GB Unified",
-                    "battery": "18 Hours",
+                    "gpu": "10-Core Apple GPU",
+                    "ram_gb": 16,
+                    "storage_gb": 512,
+                    "battery_wh": 66,
+                    "weight_kg": 1.51,
                 },
             },
         )
 
-        laptop_reviews = [
-            (
-                loq,
-                9,
-                "Dedicated RTX 4050 handles CUDA and local LLMs smoothly; sturdy thermal design.",
-                "Heavy power brick and modest 5-hour unplugged battery life.",
-                {c_gpu: 9, c_bat: 5, c_therm: 9, c_port: 6},
-            ),
-            (
-                thinkpad,
-                8,
-                "Best-in-class keyboard, featherlight 1.12kg chassis, Linux compatibility.",
-                "Integrated GPU is not suited for heavy 3D or deep learning workloads.",
-                {c_gpu: 4, c_bat: 9, c_therm: 7, c_port: 10},
-            ),
-            (
-                macbook,
-                9,
-                "Unmatched battery life, zero fan noise, bright Liquid Retina display.",
-                "No upgradeable RAM slots and passive cooling throttles under sustained load.",
-                {c_gpu: 7, c_bat: 10, c_therm: 8, c_port: 9},
-            ),
+        # 5 Reviewer distributions per laptop (including mixed opinions on Fan Acoustics for LOQ)
+        loq_distributions = [
+            {c_gpu: 9, c_bat: 5, c_therm: 9, c_port: 5, c_fan_noise: 9},
+            {c_gpu: 9, c_bat: 4, c_therm: 8, c_port: 6, c_fan_noise: 4},
+            {c_gpu: 10, c_bat: 5, c_therm: 9, c_port: 5, c_fan_noise: 8},
+            {c_gpu: 9, c_bat: 5, c_therm: 9, c_port: 5, c_fan_noise: 4},
+            {c_gpu: 9, c_bat: 6, c_therm: 8, c_port: 6, c_fan_noise: 9},
         ]
-        for prod, overall, pros, cons, score_map in laptop_reviews:
+        for idx, score_map in enumerate(loq_distributions):
             rev, _ = Review.objects.update_or_create(
-                user=reviewer_user,
-                product=prod,
-                defaults={
-                    "overall_rating": overall,
-                    "pros": pros,
-                    "cons": cons,
-                    "comment": f"Comprehensive benchmark evaluation for {prod}.",
-                },
+                user=reviewers[idx],
+                product=loq,
+                defaults={"overall_rating": 9, "pros": "Strong RTX 4050 performance", "cons": "Modest battery"},
             )
             for crit, val in score_map.items():
-                ReviewScore.objects.update_or_create(
-                    review=rev, criteria=crit, defaults={"score": val}
-                )
+                ReviewScore.objects.update_or_create(review=rev, criteria=crit, defaults={"score": val})
 
-        # 2. Category: Smartphones (including hierarchical Sub-Criteria)
-        phones, _ = Category.objects.get_or_create(
-            slug="smartphones", defaults={"name": "Flagship Smartphones"}
-        )
-        p_cam, _ = Criteria.objects.get_or_create(category=phones, name="Camera System")
-        p_lowlight, _ = Criteria.objects.update_or_create(
-            category=phones, name="Low-Light Photography", defaults={"parent": p_cam}
-        )
-        p_bat, _ = Criteria.objects.get_or_create(category=phones, name="Battery Endurance")
-        p_disp, _ = Criteria.objects.get_or_create(category=phones, name="Display Quality")
-
-        s24, _ = Product.objects.update_or_create(
-            slug="galaxy-s24-ultra",
-            defaults={
-                "category": phones,
-                "brand": "Samsung",
-                "name": "Galaxy S24 Ultra",
-                "price": Decimal("1199.00"),
-                "description": "Titanium flagship with anti-reflective 120Hz AMOLED display and 5x optical periscope zoom.",
-                "specs": {"display": "6.8 AMOLED 120Hz", "camera": "200MP Quad", "battery": "5000mAh"},
-            },
-        )
-        pixel, _ = Product.objects.update_or_create(
-            slug="pixel-9-pro",
-            defaults={
-                "category": phones,
-                "brand": "Google",
-                "name": "Pixel 9 Pro",
-                "price": Decimal("999.00"),
-                "description": "Computational photography leader with Tensor G4 and class-leading night sight.",
-                "specs": {"display": "6.3 LTPO OLED", "chip": "Tensor G4", "camera": "50MP Triple"},
-            },
-        )
-
-        for prod, overall, pros, cons, score_map in [
-            (
-                s24,
-                9,
-                "Anti-reflective screen and S-Pen productivity.",
-                "Bulky in small pockets.",
-                {p_cam: 9, p_lowlight: 8, p_bat: 9, p_disp: 10},
-            ),
-            (
-                pixel,
-                9,
-                "Best night-mode skin tones and clean Android updates.",
-                "Charging speed is slower than competitors.",
-                {p_cam: 10, p_lowlight: 10, p_bat: 7, p_disp: 9},
-            ),
-        ]:
+        thinkpad_distributions = [
+            {c_gpu: 4, c_bat: 9, c_therm: 7, c_port: 10, c_fan_noise: 8},
+            {c_gpu: 5, c_bat: 9, c_therm: 7, c_port: 10, c_fan_noise: 8},
+            {c_gpu: 4, c_bat: 8, c_therm: 8, c_port: 9, c_fan_noise: 7},
+            {c_gpu: 4, c_bat: 9, c_therm: 7, c_port: 10, c_fan_noise: 8},
+            {c_gpu: 5, c_bat: 9, c_therm: 7, c_port: 10, c_fan_noise: 8},
+        ]
+        for idx, score_map in enumerate(thinkpad_distributions):
             rev, _ = Review.objects.update_or_create(
-                user=reviewer_user,
-                product=prod,
-                defaults={"overall_rating": overall, "pros": pros, "cons": cons},
+                user=reviewers[idx],
+                product=thinkpad,
+                defaults={"overall_rating": 8, "pros": "Featherlight chassis", "cons": "Integrated graphics only"},
             )
             for crit, val in score_map.items():
-                ReviewScore.objects.update_or_create(
-                    review=rev, criteria=crit, defaults={"score": val}
-                )
+                ReviewScore.objects.update_or_create(review=rev, criteria=crit, defaults={"score": val})
 
-        # 3. Saved Products & Decision Journal with Expectation vs Reality
+        macbook_distributions = [
+            {c_gpu: 7, c_bat: 10, c_therm: 8, c_port: 9, c_fan_noise: 10},
+            {c_gpu: 7, c_bat: 10, c_therm: 7, c_port: 9, c_fan_noise: 10},
+            {c_gpu: 8, c_bat: 9, c_therm: 8, c_port: 9, c_fan_noise: 10},
+            {c_gpu: 7, c_bat: 10, c_therm: 8, c_port: 9, c_fan_noise: 10},
+            {c_gpu: 7, c_bat: 10, c_therm: 8, c_port: 8, c_fan_noise: 10},
+        ]
+        for idx, score_map in enumerate(macbook_distributions):
+            rev, _ = Review.objects.update_or_create(
+                user=reviewers[idx],
+                product=macbook,
+                defaults={"overall_rating": 9, "pros": "Silent M3 and 18h battery", "cons": "No RAM upgrades"},
+            )
+            for crit, val in score_map.items():
+                ReviewScore.objects.update_or_create(review=rev, criteria=crit, defaults={"score": val})
+
         SavedProduct.objects.get_or_create(user=admin_user, product=loq)
         SavedProduct.objects.get_or_create(user=admin_user, product=macbook)
 
@@ -200,18 +179,13 @@ class Command(BaseCommand):
             category=laptops,
             chosen_product=loq,
             defaults={
-                "weights_snapshot": {
-                    "GPU & AI Performance": 10.0,
-                    "Cooling & Thermals": 9.0,
-                    "Battery Life": 4.0,
-                    "Portability": 5.0,
-                },
-                "rationale": "Selected Lenovo LOQ 15IRH8 because local LLM inference and CUDA coursework require dedicated RTX 4050 graphics and strong cooling.",
-                "expected_outcome": "Expected smooth 7B LLM execution in Ollama and stable temperatures under compilation loads.",
+                "weights_snapshot": {"GPU & AI Performance": 10.0, "Cooling & Thermals": 9.0, "Battery Life": 4.0, "Portability": 5.0},
+                "rationale": "Selected Lenovo LOQ 15IRH8 for CUDA and local LLM workloads.",
+                "expected_outcome": "Smooth local model execution and stable thermals.",
                 "expected_rating": 8,
-                "actual_experience": "After 6 months of university projects, RTX 4050 exceeded expectations in PyTorch and Ollama, though battery requires carrying the charger.",
+                "actual_experience": "Exceeded expectations in PyTorch and Ollama over 6 months.",
                 "satisfaction_rating": 9,
             },
         )
 
-        self.stdout.write(self.style.SUCCESS("✅ Complete demo data seeded! Login: admin@example.com / admin1234"))
+        self.stdout.write(self.style.SUCCESS("✅ Seeded normalized schema, 5-reviewer consensus, and journal data!"))

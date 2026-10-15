@@ -24,18 +24,9 @@ class Review(TimeStampedModel):
         validators=[MinValueValidator(1), MaxValueValidator(10)],
         help_text="Overall impression score from 1 to 10.",
     )
-    pros = models.TextField(
-        blank=True,
-        help_text="Key strengths experienced with this product.",
-    )
-    cons = models.TextField(
-        blank=True,
-        help_text="Key drawbacks or trade-offs noticed.",
-    )
-    comment = models.TextField(
-        blank=True,
-        help_text="Detailed written review explaining the user's experience.",
-    )
+    pros = models.TextField(blank=True)
+    cons = models.TextField(blank=True)
+    comment = models.TextField(blank=True)
 
     class Meta:
         verbose_name = "Review"
@@ -49,7 +40,7 @@ class Review(TimeStampedModel):
         ]
 
     def __str__(self) -> str:
-        return f"Review by {self.user} on {self.product}"
+        return f"Review by {self.user.display_name} on {self.product}"
 
 
 class ReviewScore(TimeStampedModel):
