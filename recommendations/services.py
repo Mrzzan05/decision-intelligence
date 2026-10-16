@@ -1,4 +1,5 @@
-﻿import json
+import math
+import json
 from collections import defaultdict
 from collections.abc import Mapping
 from typing import Any
@@ -38,7 +39,7 @@ def parse_criteria_weights_from_params(
         except (TypeError, ValueError):
             continue
 
-        if 0.0 <= weight_val <= 10.0:
+        if math.isfinite(weight_val) and 0.0 <= weight_val <= 10.0:
             weights[int(criteria_id_str)] = weight_val
 
     return weights

@@ -1,4 +1,4 @@
-﻿from django.urls import path
+from django.urls import path
 
 from reviews.views import create_or_update_review_view, delete_review_view
 

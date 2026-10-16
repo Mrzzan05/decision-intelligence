@@ -1,4 +1,4 @@
-﻿from django import forms
+from django import forms
 
 from journal.models import DecisionEntry
 

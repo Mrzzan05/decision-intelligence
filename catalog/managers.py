@@ -1,4 +1,4 @@
-﻿from decimal import Decimal
+from decimal import Decimal
 from typing import Self
 from django.db import models
 from django.db.models import Avg, Count, FloatField, Q
