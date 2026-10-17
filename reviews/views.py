@@ -29,7 +29,7 @@ def create_or_update_review_view(
         }
 
     for crit in criteria_list:
-        crit.initial_score = existing_scores.get(crit.id, 8)  # type: ignore[attr-defined]
+        crit.initial_score = existing_scores.get(crit.id)  # type: ignore[attr-defined]
 
     if request.method == "POST":
         form = ReviewForm(request.POST, instance=existing_review)

@@ -1,4 +1,4 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 
 {% block title %}{{ category.name }} — Decision Matrix{% endblock %}
 
@@ -33,7 +33,7 @@
                 <button
                     type="button"
                     class="btn btn-outline btn-sm"
-                    onclick='applyPreset({{ preset.weights_json|safe }})'
+                    data-preset-weights="{{ preset.weights_json }}"
                 >
                     <i data-lucide="sparkles" class="icon-inline"></i> {{ preset.label }}
                 </button>
@@ -101,18 +101,8 @@
                 </div>
 
                 <div class="summary-box">
-                    <strong><i data-lucide="award" class="icon-inline"></i> Why it wins for your priorities:</strong>
-                    <ul class="consensus-list">
-                        {% for item in best_match.smart_summary.pros %}
-                            <li class="consensus-pro">+ {{ item }}</li>
-                        {% endfor %}
-                        {% for item in best_match.smart_summary.mixed %}
-                            <li class="consensus-mixed">&plusmn; {{ item }}</li>
-                        {% endfor %}
-                        {% for item in best_match.smart_summary.cons %}
-                            <li class="consensus-con">&minus; {{ item }}</li>
-                        {% endfor %}
-                    </ul>
+                    <strong><i data-lucide="award" class="icon-inline"></i> Why it fits your priorities</strong>
+                    {% include "partials/smart_summary.html" with summary=best_match.smart_summary %}
                 </div>
 
                 {% if best_match.dealbreakers %}
@@ -122,8 +112,8 @@
                 {% endif %}
 
                 <div class="flex-between">
-                    <button type="button" class="btn btn-outline btn-sm" onclick="toggleCompareTrayItem('{{ best_match.slug }}', '{{ best_match.brand }} {{ best_match.name }}', '{{ category.slug }}')">
-                        <i data-lucide="plus-circle" class="icon-inline"></i> Add to Compare
+                    <button type="button" class="btn btn-outline btn-sm" aria-pressed="false" data-compare-slug="{{ best_match.slug }}" data-compare-name="{{ best_match.brand }} {{ best_match.name }}" data-compare-category="{{ category.slug }}">
+                        <i data-lucide="plus-circle" class="icon-inline"></i> <span class="compare-label">Compare</span>
                     </button>
                     <a href="{% url 'record_decision' best_match.slug %}{% if query_string %}?{{ query_string }}{% endif %}" class="btn">
                         <i data-lucide="bookmark-check" class="icon-inline"></i> Select &amp; Record in Journal
@@ -185,17 +175,7 @@
                 {% endif %}
 
                 <div class="summary-box">
-                    <ul class="consensus-list">
-                        {% for item in product.smart_summary.pros %}
-                            <li class="consensus-pro">+ {{ item }}</li>
-                        {% endfor %}
-                        {% for item in product.smart_summary.mixed %}
-                            <li class="consensus-mixed">&plusmn; {{ item }}</li>
-                        {% endfor %}
-                        {% for item in product.smart_summary.cons %}
-                            <li class="consensus-con">&minus; {{ item }}</li>
-                        {% endfor %}
-                    </ul>
+                    {% include "partials/smart_summary.html" with summary=product.smart_summary %}
                 </div>
 
                 <details>
@@ -222,8 +202,8 @@
 
                 <div class="flex-between" style="margin-top:var(--space-3);">
                     <div style="display:flex; gap:var(--space-2);">
-                        <button type="button" class="btn btn-outline btn-sm" onclick="toggleCompareTrayItem('{{ product.slug }}', '{{ product.brand }} {{ product.name }}', '{{ category.slug }}')">
-                            <i data-lucide="plus" class="icon-inline"></i> Compare
+                        <button type="button" class="btn btn-outline btn-sm" aria-pressed="false" data-compare-slug="{{ product.slug }}" data-compare-name="{{ product.brand }} {{ product.name }}" data-compare-category="{{ category.slug }}">
+                            <i data-lucide="plus" class="icon-inline"></i> <span class="compare-label">Compare</span>
                         </button>
                         <a href="{% url 'catalog:product_detail' product.slug %}" class="btn btn-outline btn-sm"><i data-lucide="info" class="icon-inline"></i> Details</a>
                         <a href="{% url 'reviews:write_review' product.slug %}" class="btn btn-outline btn-sm"><i data-lucide="pen-line" class="icon-inline"></i> Rate</a>
@@ -239,6 +219,7 @@
 
 <script>
     let debounceTimer = null;
+    let liveController = null;
     let matrixChartInstance = null;
     let currentMatrixChartType = "radar";
 
@@ -306,6 +287,12 @@
         triggerLiveRankingUpdate();
     }
 
+    document.querySelectorAll("[data-preset-weights]").forEach(function(btn) {
+        btn.addEventListener("click", function() {
+            try { applyPreset(JSON.parse(btn.dataset.presetWeights)); } catch (e) { /* ignore malformed preset */ }
+        });
+    });
+
     function applyPreset(weightsMap) {
         for (const [inputName, val] of Object.entries(weightsMap)) {
             const el = document.getElementById(inputName);
@@ -322,7 +309,7 @@
     function triggerLiveRankingUpdate() {
         clearTimeout(debounceTimer);
         const statusEl = document.getElementById("live_status");
-        if (statusEl) statusEl.innerText = "⏳ Recalculating live match scores...";
+        if (statusEl) statusEl.textContent = "⏳ Recalculating live match scores...";
 
         debounceTimer = setTimeout(function() {
             const form = document.getElementById("weights_form");
@@ -330,8 +317,13 @@
             const newUrl = window.location.pathname + "?" + params;
             window.history.replaceState({}, "", newUrl);
 
-            fetch(newUrl)
-                .then(function(r) { return r.text(); })
+            if (liveController) liveController.abort();   // drop stale responses
+            liveController = new AbortController();
+            fetch(newUrl, { signal: liveController.signal })
+                .then(function(r) {
+                    if (!r.ok) throw new Error("HTTP " + r.status);
+                    return r.text();
+                })
                 .then(function(html) {
                     const parser = new DOMParser();
                     const doc = parser.parseFromString(html, "text/html");
@@ -340,8 +332,13 @@
                         document.getElementById("ranked_results_container").innerHTML = updatedResults.innerHTML;
                         renderMatrixChart();
                         refreshLucideIcons();
+                        renderCompareTray();
                     }
-                    if (statusEl) statusEl.innerText = "✓ Rankings & Radar Chart updated live.";
+                    if (statusEl) statusEl.textContent = "✓ Rankings & chart updated.";
+                })
+                .catch(function(err) {
+                    if (err.name === "AbortError") return;
+                    if (statusEl) statusEl.textContent = "⚠ Could not refresh. Submit the form to retry.";
                 });
         }, 140);
     }

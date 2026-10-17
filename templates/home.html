@@ -1,4 +1,4 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 
 {% block title %}Dashboard — Decision Intelligence Platform{% endblock %}
 
@@ -11,11 +11,11 @@
             </span>
             <h1>Benchmark-Driven Decision Intelligence</h1>
             <p>
-                Compare real-world Laptops &amp; Smartphones across normalized hardware benchmarks, verified buyer consensus, and interactive Radar &amp; Grouped Bar visualizations.
+                Tell us what matters to you, see which products fit those priorities, and understand the trade-offs. Demo catalog: specifications are approximate and review scores are sample data.
             </p>
             <div class="spec-pills" style="margin-top: var(--space-4);">
-                <span class="badge badge-primary"><i data-lucide="package" class="icon-inline"></i> {{ total_products }} Real Flagship Models</span>
-                <span class="badge badge-primary"><i data-lucide="message-square-quote" class="icon-inline"></i> {{ total_reviews }} Verified Buyer Reviews</span>
+                <span class="badge badge-primary"><i data-lucide="package" class="icon-inline"></i> {{ total_products }} Products</span>
+                <span class="badge badge-primary"><i data-lucide="message-square-quote" class="icon-inline"></i> {{ total_reviews }} Reviews</span>
                 <span class="badge badge-success"><i data-lucide="check-circle-2" class="icon-inline"></i> {{ total_decisions }} Logged Decisions</span>
             </div>
         </div>
@@ -44,22 +44,18 @@
             <div>
                 <div class="flex-between">
                     <span class="badge badge-primary">
-                        {% if category.slug == 'laptops' %}
-                            <i data-lucide="laptop" class="icon-inline"></i> Lenovo &middot; Apple &middot; ASUS &middot; Dell &middot; HP
-                        {% else %}
-                            <i data-lucide="smartphone" class="icon-inline"></i> Samsung &middot; Apple &middot; Xiaomi &middot; Google &middot; Oppo &middot; Nothing &middot; Huawei
-                        {% endif %}
+                        <i data-lucide="layers" class="icon-inline"></i> Category
                     </span>
                     <span class="spec-pill">{{ category.product_count }} Models</span>
                 </div>
                 <h3 style="font-size: var(--text-xl); margin: var(--space-3) 0 var(--space-2) 0;">{{ category.name }}</h3>
                 <p class="text-muted" style="font-size: var(--text-sm); margin-bottom: var(--space-4);">
-                    Evaluate {{ category.product_count }} real-world models across {{ category.criteria_count }} weighted decision criteria, hardware benchmarks, and verified buyer consensus.
+                    Evaluate {{ category.product_count }} real-world models across {{ category.criteria_count }} decision criteria weighted by your own priorities.
                 </p>
             </div>
             <div style="display:flex; gap:var(--space-3);">
                 <a href="{% url 'recommendations:category_recommendations' category.slug %}" class="btn btn-block">
-                    <i data-lucide="Sliders" class="icon-inline"></i> Launch {{ category.name }} Matrix →
+                    <i data-lucide="sliders-horizontal" class="icon-inline"></i> Launch {{ category.name }} Matrix →
                 </a>
             </div>
         </div>

@@ -169,3 +169,13 @@ class DecisionJournalTests(TestCase):
         self.assertEqual(response.context["avg_expected"], 8.0)
         self.assertEqual(response.context["avg_actual"], 10.0)
         self.assertEqual(response.context["saved_products"].count(), 1)
+
+
+class DashboardAnalyticsTests(TestCase):
+    def test_dashboard_exposes_platform_analytics(self) -> None:
+        user = User.objects.create_user(username="dash", email="dash@example.com", password="Password123!")
+        self.client.force_login(user)
+        response = self.client.get(reverse("dashboard"))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("analytics", response.context)
+        self.assertContains(response, "Platform analytics")

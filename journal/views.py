@@ -7,6 +7,7 @@ from catalog.models import Product, SavedProduct
 from journal.forms import DecisionEntryForm
 from journal.models import DecisionEntry
 from recommendations.services import (
+    build_platform_analytics,
     build_weights_snapshot_by_name,
     parse_criteria_weights_from_params,
 )
@@ -113,5 +114,6 @@ def dashboard_view(request: HttpRequest) -> HttpResponse:
         "avg_expected": round(float(aggs["avg_expected"] or 0.0), 1),
         "avg_actual": round(float(aggs["avg_actual"] or 0.0), 1),
         "decision_count": len(decisions),
+        "analytics": build_platform_analytics(),
     }
     return render(request, "journal/dashboard.html", context)

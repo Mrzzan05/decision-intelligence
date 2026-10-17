@@ -1,4 +1,4 @@
-﻿{% load static %}
+{% load static %}
 <!DOCTYPE html>
 <html lang="en" data-theme="{% if user.is_authenticated and user.preference.theme_mode %}{{ user.preference.theme_mode }}{% else %}system{% endif %}" data-auth="{% if user.is_authenticated %}true{% else %}false{% endif %}">
 <head>
@@ -7,9 +7,9 @@
     <title>{% block title %}Decision Intelligence Platform{% endblock %}</title>
     <link rel="stylesheet" href="{% static 'css/main.css' %}">
     <!-- Lucide Vector Icons, Lordicon Animated Icons, and Chart.js 4 -->
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="https://cdn.lordicon.com/lordicon.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+    <script src="/static/vendor/lucide.min.js"></script>
+    <script src="/static/vendor/lordicon.js"></script>
+    <script src="/static/vendor/chart.umd.min.js"></script>
     <script>
         (function() {
             const root = document.documentElement;
@@ -107,17 +107,26 @@
 
         function getTray() {
             try { return JSON.parse(localStorage.getItem("di_compare_tray") || "[]"); }
-            catch { return []; }
+            catch (e) { return []; }
         }
         function saveTray(items) {
             localStorage.setItem("di_compare_tray", JSON.stringify(items));
+            if (items.length === 0) localStorage.removeItem("di_compare_weights");
             renderCompareTray();
+        }
+        // Carry the user's priority sliders (?weight_<id>=..) into the comparison page.
+        function currentWeightsQuery() {
+            const out = [];
+            new URLSearchParams(window.location.search).forEach(function(v, k) {
+                if (/^weight_\d+$/.test(k)) out.push(encodeURIComponent(k) + "=" + encodeURIComponent(v));
+            });
+            return out.join("&");
         }
         function toggleCompareTrayItem(slug, name, categorySlug) {
             let items = getTray();
-            const exists = items.find(i => i.slug === slug);
+            const exists = items.find(function(i) { return i.slug === slug; });
             if (exists) {
-                items = items.filter(i => i.slug !== slug);
+                items = items.filter(function(i) { return i.slug !== slug; });
             } else {
                 if (items.length > 0 && items[0].category !== categorySlug) {
                     if (!confirm("Comparison works within the same category. Replace current tray with " + name + "?")) return;
@@ -129,6 +138,8 @@
                 }
                 items.push({ slug: slug, name: name, category: categorySlug });
             }
+            const wq = currentWeightsQuery();
+            if (wq) localStorage.setItem("di_compare_weights", wq);
             saveTray(items);
         }
         function clearCompareTray() {
@@ -136,6 +147,14 @@
         }
         function renderCompareTray() {
             const items = getTray();
+            const slugs = items.map(function(i) { return i.slug; });
+            document.querySelectorAll("[data-compare-slug]").forEach(function(btn) {
+                const on = slugs.indexOf(btn.dataset.compareSlug) !== -1;
+                btn.classList.toggle("is-active", on);
+                btn.setAttribute("aria-pressed", on ? "true" : "false");
+                const label = btn.querySelector(".compare-label");
+                if (label) label.textContent = on ? "In tray" : "Compare";
+            });
             const tray = document.getElementById("compare_tray");
             if (!tray) return;
             if (items.length === 0) {
@@ -143,13 +162,26 @@
                 return;
             }
             tray.style.display = "flex";
-            document.getElementById("tray_count").innerText = items.length;
-            document.getElementById("tray_items").innerHTML = items
-                .map(function(i) { return '<span class="spec-pill">' + i.name + '</span>'; })
-                .join("");
-            const query = items.map(function(i) { return "p=" + encodeURIComponent(i.slug); }).join("&");
+            document.getElementById("tray_count").textContent = items.length;
+            const holder = document.getElementById("tray_items");
+            holder.textContent = "";
+            items.forEach(function(i) {
+                const pill = document.createElement("span");
+                pill.className = "spec-pill";
+                pill.textContent = i.name;   // textContent: product names are never parsed as HTML
+                holder.appendChild(pill);
+            });
+            let query = items.map(function(i) { return "p=" + encodeURIComponent(i.slug); }).join("&");
+            const wq = localStorage.getItem("di_compare_weights");
+            if (wq) query += "&" + wq;
             document.getElementById("tray_launch_link").href = "{% url 'catalog:product_compare' %}?" + query;
         }
+        document.addEventListener("click", function(e) {
+            const btn = e.target.closest("[data-compare-slug]");
+            if (btn) {
+                toggleCompareTrayItem(btn.dataset.compareSlug, btn.dataset.compareName, btn.dataset.compareCategory);
+            }
+        });
         renderCompareTray();
         refreshLucideIcons();
     </script>

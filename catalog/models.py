@@ -127,7 +127,15 @@ class Product(TimeStampedModel):
         schema = self.category.spec_schema or []
         if not schema:
             return [
-                {"key": k, "label": k.replace("_", " ").title(), "value": v, "unit": "", "group": "General"}
+                {
+                    "key": k,
+                    "label": k.replace("_", " ").title(),
+                    "raw_value": v,
+                    "display_value": str(v),
+                    "unit": "",
+                    "higher_is_better": None,
+                    "group": "General",
+                }
                 for k, v in (self.specs or {}).items()
             ]
         normalized = []

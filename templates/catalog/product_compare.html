@@ -1,8 +1,9 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 
 {% block title %}Side-by-Side Product Comparison{% endblock %}
 
 {% block content %}
+<style>#compare_tray { display: none !important; }</style>
 <div class="flex-between" style="margin-bottom: var(--space-4);">
     <div>
         <h1><i data-lucide="git-compare" class="icon-inline"></i> Head-to-Head Benchmark &amp; Criteria Comparison</h1>
@@ -11,6 +12,14 @@
         </p>
     </div>
 </div>
+
+{% if compared_products and not has_custom_weights %}
+    <div class="alert alert-warning">
+        <i data-lucide="sliders-horizontal" class="icon-inline"></i>
+        These results use <strong>neutral priorities</strong> (every criterion = 5/10).
+        <a href="{% if matrix.category %}{% url 'recommendations:category_recommendations' matrix.category.slug %}{% else %}{% url 'home' %}{% endif %}">Set your own priorities</a> to see what matters most to you first.
+    </div>
+{% endif %}
 
 {% if matrix.cross_category_warning %}
     <div class="alert alert-warning">
@@ -66,7 +75,7 @@
         </div>
         {% if matrix.identical_spec_count > 0 %}
             <button type="button" id="toggle_identical_btn" class="btn btn-outline btn-sm" onclick="toggleIdenticalRows()">
-                👁️ Hide {{ matrix.identical_spec_count }} Identical Specification{{ matrix.identical_spec_count|pluralize }}
+                Hide {{ matrix.identical_spec_count }} identical specification{{ matrix.identical_spec_count|pluralize }}
             </button>
         {% endif %}
     </div>
@@ -120,7 +129,7 @@
                 <!-- Section 1: Important Criteria for You -->
                 <tr class="compare-section-row">
                     <td colspan="{{ compared_products|length|add:1 }}">
-                        <i data-lucide="target" class="icon-inline"></i> Important Criteria for You (Priority Weight &ge; 6)
+                        <i data-lucide="target" class="icon-inline"></i> Your Priorities (weight &ge; 6)
                     </td>
                 </tr>
                 {% for row in matrix.important_criteria_rows %}
@@ -141,27 +150,42 @@
                     </tr>
                 {% endfor %}
 
+                {% if matrix.secondary_criteria_rows %}
+                    <tr class="compare-section-row">
+                        <td colspan="{{ compared_products|length|add:1 }}">
+                            <i data-lucide="list" class="icon-inline"></i> Other Criteria
+                        </td>
+                    </tr>
+                    {% for row in matrix.secondary_criteria_rows %}
+                        <tr>
+                            <td>
+                                <strong>{{ row.criteria.name }}</strong>
+                                <div class="text-muted" style="font-size:var(--text-xs);">Your Weight: {{ row.weight|floatformat:0 }}/10</div>
+                            </td>
+                            {% for cell in row.cells %}
+                                <td class="{% if cell.is_winner %}winner-cell{% endif %}">
+                                    {% if cell.score is not None %}
+                                        {{ cell.score }}/10 {% if cell.is_winner %}★ Best{% endif %}
+                                    {% else %}
+                                        Insufficient data
+                                    {% endif %}
+                                </td>
+                            {% endfor %}
+                        </tr>
+                    {% endfor %}
+                {% endif %}
+
                 <!-- Section 2: Consensus Smart Summary -->
                 <tr class="compare-section-row">
                     <td colspan="{{ compared_products|length|add:1 }}">
-                        <i data-lucide="users" class="icon-inline"></i> Verified Buyer Consensus ({{ matrix.category.name }})
+                        <i data-lucide="users" class="icon-inline"></i> Reviewer Consensus ({{ matrix.category.name }})
                     </td>
                 </tr>
                 <tr>
-                    <td><strong>RTINGS-Style Summary</strong></td>
+                    <td><strong>What reviewers say</strong></td>
                     {% for prod in compared_products %}
                         <td>
-                            <ul class="consensus-list">
-                                {% for item in prod.smart_summary.pros %}
-                                    <li class="consensus-pro">+ {{ item }}</li>
-                                {% endfor %}
-                                {% for item in prod.smart_summary.mixed %}
-                                    <li class="consensus-mixed">&plusmn; {{ item }}</li>
-                                {% endfor %}
-                                {% for item in prod.smart_summary.cons %}
-                                    <li class="consensus-con">&minus; {{ item }}</li>
-                                {% endfor %}
-                            </ul>
+                            {% include "partials/smart_summary.html" with summary=prod.smart_summary %}
                         </td>
                     {% endfor %}
                 </tr>
@@ -187,6 +211,16 @@
                         </tr>
                     {% endfor %}
                 {% endfor %}
+                <tr>
+                    <td><strong>Decide</strong></td>
+                    {% for prod in compared_products %}
+                        <td>
+                            <a class="btn btn-sm" href="{% url 'record_decision' prod.slug %}{% if weights_query %}?{{ weights_query }}{% endif %}">
+                                <i data-lucide="bookmark-check" class="icon-inline"></i> Choose this one
+                            </a>
+                        </td>
+                    {% endfor %}
+                </tr>
             </tbody>
         </table>
     </div>
@@ -206,8 +240,8 @@
             const btn = document.getElementById("toggle_identical_btn");
             if (btn) {
                 btn.innerText = identicalHidden
-                    ? "👁️ Show All (" + identicalCount + " identical hidden)"
-                    : "👁️ Hide " + identicalCount + " Identical Specification" + (identicalCount === 1 ? "" : "s");
+                    ? "Show all specifications (" + identicalCount + " identical hidden)"
+                    : "Hide " + identicalCount + " identical specification" + (identicalCount === 1 ? "" : "s");
             }
         }
 
@@ -264,6 +298,7 @@
 
         window.updateDecisionChartTheme = renderCompareChart;
         renderCompareChart();
+        if (identicalCount > 0) toggleIdenticalRows();   // differences first; one click to show everything
     </script>
 {% endif %}
 {% endblock %}

@@ -12,7 +12,7 @@ User = get_user_model()
 
 
 class Command(BaseCommand):
-    help = "Seed 20 real-world laptops and smartphones across 11 global brands with benchmarks and 100 buyer reviews."
+    help = "Seed 20 laptops and smartphones (approximate public specs) with DEMO benchmarks and 100 synthetic demo reviews."
 
     @transaction.atomic
     def handle(self, *args, **options) -> None:
@@ -25,8 +25,8 @@ class Command(BaseCommand):
             admin_user.save()
 
         buyer_profiles = [
-            ("buyer1@example.com", "arash_dev", "Arash K. (Verified Buyer)"),
-            ("buyer2@example.com", "sara_design", "Sara M. (Verified Buyer)"),
+            ("buyer1@example.com", "arash_dev", "Arash K. (Demo Reviewer)"),
+            ("buyer2@example.com", "sara_design", "Sara M. (Demo Reviewer)"),
             ("buyer3@example.com", "kian_ai", "Kian R. (ML Engineer)"),
             ("buyer4@example.com", "nima_photo", "Nima T. (Tech Reviewer)"),
             ("buyer5@example.com", "elena_daily", "Elena V. (Power User)"),
@@ -510,7 +510,7 @@ class Command(BaseCommand):
                             "overall_rating": 9 if idx % 2 == 0 else 8,
                             "pros": item["pros"],
                             "cons": item["cons"],
-                            "comment": f"Verified long-term buyer evaluation of {prod.brand} {prod.name}.",
+                            "comment": f"Demo review of {prod.brand} {prod.name}.",
                         },
                     )
                     for crit, val in score_map.items():
@@ -542,6 +542,6 @@ class Command(BaseCommand):
 
         self.stdout.write(
             self.style.SUCCESS(
-                "✅ Seeded 20 real-world laptops & smartphones (11 brands), benchmarks, and 100 verified buyer reviews!"
+                "✅ Seeded 20 laptops & smartphones (11 brands) and 100 synthetic DEMO reviews. All review scores are demo data."
             )
         )

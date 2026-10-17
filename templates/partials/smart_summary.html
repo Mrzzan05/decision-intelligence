@@ -1,0 +1,11 @@
+{# RTINGS-style consensus: "+ / ± / −" + one short sentence. Expects `summary`. #}
+{% if summary.pros or summary.mixed or summary.cons %}
+<ul class="rt-list">
+    {% for item in summary.pros %}<li class="rt-item rt-pro"><span class="rt-sign" title="Strength" aria-label="Strength">+</span><span>{{ item }}</span></li>{% endfor %}
+    {% for item in summary.mixed %}<li class="rt-item rt-mixed"><span class="rt-sign" title="Mixed opinions" aria-label="Mixed opinions">&plusmn;</span><span>{{ item }}</span></li>{% endfor %}
+    {% for item in summary.cons %}<li class="rt-item rt-con"><span class="rt-sign" title="Weakness" aria-label="Weakness">&minus;</span><span>{{ item }}</span></li>{% endfor %}
+</ul>
+{% else %}
+<p class="text-muted" style="font-size:var(--text-sm);">{{ summary.verdict|default:"Not enough review data yet." }}</p>
+{% endif %}
+<p class="rt-basis">{{ summary.basis_text|default:"Insufficient data" }}{% if summary.review_count and summary.review_count < 5 %} &middot; low confidence (fewer than 5 reviews){% endif %}</p>

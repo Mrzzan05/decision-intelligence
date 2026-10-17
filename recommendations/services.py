@@ -4,9 +4,10 @@ from collections import defaultdict
 from collections.abc import Mapping
 from typing import Any
 from django.db.models import Avg, Count, Q, StdDev
+from django.db.models.functions import TruncMonth
 
 from catalog.models import Category, Criteria, Product
-from reviews.models import ReviewScore
+from reviews.models import Review, ReviewScore
 
 DEFAULT_CRITERIA_WEIGHT: float = 5.0
 DEALBREAKER_WEIGHT_THRESHOLD: float = 8.0
@@ -20,6 +21,19 @@ CHART_PALETTE = [
     {"border": "#f59e0b", "bg": "rgba(245, 158, 11, 0.22)"},
     {"border": "#ec4899", "bg": "rgba(236, 72, 153, 0.22)"},
 ]
+
+
+def script_safe_json(payload: Any) -> str:
+    """
+    json.dumps() output that is safe to embed inside an HTML <script> block:
+    '<', '>' and '&' are escaped so a product/criteria name can never close the tag.
+    """
+    return (
+        json.dumps(payload)
+        .replace("<", "\\u003c")
+        .replace(">", "\\u003e")
+        .replace("&", "\\u0026")
+    )
 
 
 def parse_criteria_weights_from_params(
@@ -105,7 +119,8 @@ def generate_smart_summary(
         cat_mean = category_criteria_means.get(crit.id, 7.0)
 
         if total >= 2 and stddev >= MIXED_OPINION_STDDEV_THRESHOLD:
-            mixed.append(f"Opinions are mixed on {crit.name} ({satisfied} of {total} positive)")
+            if len(mixed) < 2:
+                mixed.append(f"Opinions are mixed on {crit.name} ({satisfied} of {total} positive)")
             continue
 
         if avg >= max(7.5, cat_mean) and (satisfied / max(total, 1)) >= 0.7:
@@ -123,7 +138,7 @@ def generate_smart_summary(
                     f"{crit.name} is a common complaint among users ({avg:.1f}/10)"
                 )
 
-    basis_text = f"Based on {review_count} verified review{'s' if review_count != 1 else ''}"
+    basis_text = f"Based on {review_count} review{'s' if review_count != 1 else ''}"
     if pros and not cons:
         verdict = f"Strong consensus leader ({basis_text.lower()})."
     elif pros and cons:
@@ -166,7 +181,7 @@ def build_chartjs_payload(
                 "borderWidth": 2,
             }
         )
-    return json.dumps({"labels": labels, "datasets": datasets})
+    return script_safe_json({"labels": labels, "datasets": datasets})
 
 
 def rank_products_for_category(
@@ -447,4 +462,43 @@ def build_category_comparison_matrix(
         "spec_groups": spec_groups,
         "identical_spec_count": identical_count,
         "chart_data_json": chart_data_json,
+    }
+
+
+def build_platform_analytics(limit: int = 5) -> dict[str, Any]:
+    """
+    Platform-wide analytics for the dashboard: popular products, best-rated
+    products, review volume per category and review trend per month.
+    Runs a fixed number of queries (4) regardless of data size.
+    """
+    reviewed = Product.objects.select_related("category").with_average_scores().filter(
+        review_count__gt=0
+    )
+    most_reviewed = list(reviewed.order_by("-review_count", "-average_score", "name")[:limit])
+    top_rated = list(reviewed.order_by("-average_score", "-review_count", "name")[:limit])
+
+    by_category = list(
+        Category.objects.annotate(review_total=Count("products__reviews"))
+        .filter(review_total__gt=0)
+        .order_by("-review_total", "name")
+    )
+    monthly = list(
+        Review.objects.annotate(month=TruncMonth("created_at"))
+        .values("month")
+        .annotate(total=Count("id"))
+        .order_by("month")
+    )[-6:]
+
+    max_reviews = max((p.review_count for p in most_reviewed), default=0)
+    for p in most_reviewed:
+        p.popularity_pct = int(round(p.review_count / max_reviews * 100)) if max_reviews else 0
+    max_month = max((m["total"] for m in monthly), default=0)
+    for m in monthly:
+        m["pct"] = int(round(m["total"] / max_month * 100)) if max_month else 0
+
+    return {
+        "most_reviewed": most_reviewed,
+        "top_rated": top_rated,
+        "by_category": by_category,
+        "monthly": monthly,
     }

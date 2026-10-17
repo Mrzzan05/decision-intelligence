@@ -1,18 +1,91 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 
-{% block title %}Decision Dashboard{% endblock %}
+{% block title %}Dashboard — Decision Intelligence{% endblock %}
 
 {% block content %}
-<h1>Personal & Analytical Decision Dashboard</h1>
-<div class="grid-3">
-    <div class="card"><h3>Logged Decisions: {{ decision_count }}</h3></div>
-    <div class="card"><h3>Avg Expected: {{ avg_expected }}/10</h3></div>
-    <div class="card"><h3>Avg Actual: {{ avg_actual }}/10</h3></div>
+<div class="page-head">
+    <div>
+        <span class="eyebrow">Your dashboard</span>
+        <h1>Decision overview</h1>
+        <p>Your shortlist, your reviews, and how well your expectations matched reality.</p>
+    </div>
+    <a href="{% url 'journal_list' %}" class="btn btn-outline"><i data-lucide="book-open-check" class="icon-inline"></i> Open journal</a>
 </div>
-<div class="card">
-    <h3>Saved Products ({{ saved_products.count }})</h3>
-    {% for item in saved_products %}
-        <p>{{ item.product }} (&dollar;{{ item.product.price }})</p>
-    {% endfor %}
+
+<div class="stat-grid">
+    <div class="stat"><div class="stat-label">Logged decisions</div><div class="stat-value">{{ decision_count }}</div></div>
+    <div class="stat"><div class="stat-label">Avg expected</div><div class="stat-value">{{ avg_expected }}<span class="text-muted" style="font-size:var(--text-base);">/10</span></div><div class="stat-hint">before buying</div></div>
+    <div class="stat"><div class="stat-label">Avg actual</div><div class="stat-value">{{ avg_actual }}<span class="text-muted" style="font-size:var(--text-base);">/10</span></div><div class="stat-hint">after real use</div></div>
+</div>
+
+<div class="grid-2">
+    <section class="card">
+        <h2 style="font-size:var(--text-lg);">Saved products ({{ saved_products|length }})</h2>
+        {% for item in saved_products %}
+            <div class="flex-between" style="padding:var(--space-2) 0; border-bottom:1px solid var(--border);">
+                <a href="{% url 'catalog:product_detail' item.product.slug %}"><strong>{{ item.product }}</strong></a>
+                <span class="text-muted">&dollar;{{ item.product.price }}</span>
+                <a href="{% url 'record_decision' item.product.slug %}" class="btn btn-outline btn-sm">Decide</a>
+            </div>
+        {% empty %}
+            <p class="text-muted">Nothing saved yet. Use <em>Save</em> on a product page to build a shortlist.</p>
+        {% endfor %}
+    </section>
+
+    <section class="card">
+        <h2 style="font-size:var(--text-lg);">My reviews ({{ user_reviews|length }})</h2>
+        {% for rev in user_reviews %}
+            <div class="flex-between" style="padding:var(--space-2) 0; border-bottom:1px solid var(--border);">
+                <a href="{% url 'catalog:product_detail' rev.product.slug %}"><strong>{{ rev.product }}</strong></a>
+                <span class="badge badge-primary">{{ rev.overall_rating }}/10</span>
+                <a href="{% url 'reviews:write_review' rev.product.slug %}" class="btn btn-outline btn-sm">Edit</a>
+            </div>
+        {% empty %}
+            <p class="text-muted">You haven't reviewed anything yet.</p>
+        {% endfor %}
+    </section>
+</div>
+
+<h2 style="margin: var(--space-5) 0 var(--space-3);">Platform analytics</h2>
+<div class="grid-2">
+    <section class="card">
+        <h3 style="font-size:var(--text-base);">Most reviewed products</h3>
+        {% for p in analytics.most_reviewed %}
+            <div class="bar-row">
+                <a href="{% url 'catalog:product_detail' p.slug %}">{{ p.brand }} {{ p.name }}</a>
+                <div class="score-bar-track" style="margin:0;"><div class="score-bar-fill" style="width: {{ p.popularity_pct }}%;"></div></div>
+                <strong>{{ p.review_count }}</strong>
+            </div>
+        {% empty %}<p class="text-muted">No reviews yet.</p>{% endfor %}
+    </section>
+
+    <section class="card">
+        <h3 style="font-size:var(--text-base);">Highest average rating</h3>
+        {% for p in analytics.top_rated %}
+            <div class="bar-row">
+                <a href="{% url 'catalog:product_detail' p.slug %}">{{ p.brand }} {{ p.name }}</a>
+                <div class="score-bar-track" style="margin:0;"><div class="score-bar-fill" style="width: {% widthratio p.average_score 10 100 %}%;"></div></div>
+                <strong>{{ p.average_score|floatformat:1 }}</strong>
+            </div>
+        {% empty %}<p class="text-muted">No reviews yet.</p>{% endfor %}
+    </section>
+
+    <section class="card">
+        <h3 style="font-size:var(--text-base);">Reviews per category</h3>
+        {% for c in analytics.by_category %}
+            <div class="flex-between" style="padding:var(--space-1) 0;"><span>{{ c.name }}</span><strong>{{ c.review_total }}</strong></div>
+        {% empty %}<p class="text-muted">No data yet.</p>{% endfor %}
+    </section>
+
+    <section class="card">
+        <h3 style="font-size:var(--text-base);">Review activity by month</h3>
+        {% for m in analytics.monthly %}
+            <div class="bar-row">
+                <span>{{ m.month|date:"M Y" }}</span>
+                <div class="score-bar-track" style="margin:0;"><div class="score-bar-fill" style="width: {{ m.pct }}%;"></div></div>
+                <strong>{{ m.total }}</strong>
+            </div>
+        {% empty %}<p class="text-muted">No data yet.</p>{% endfor %}
+    </section>
 </div>
 {% endblock %}

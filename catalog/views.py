@@ -1,4 +1,5 @@
 from decimal import Decimal, InvalidOperation
+from urllib.parse import urlencode
 from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -110,6 +111,8 @@ def product_compare_view(request: HttpRequest) -> HttpResponse:
         "compared_products": matrix["products"],
         "all_products": all_products,
         "selected_slugs": [p.slug for p in matrix["products"]],
+        "has_custom_weights": bool(weights),
+        "weights_query": urlencode({f"weight_{cid}": f"{w:g}" for cid, w in weights.items()}),
     }
     return render(request, "catalog/product_compare.html", context)
 

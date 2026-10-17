@@ -1,20 +1,49 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 
 {% block title %}Review {{ product }}{% endblock %}
 
 {% block content %}
-<div class="card">
-    <h1>{% if is_editing %}Edit Review{% else %}Write Review{% endif %}: {{ product }}</h1>
-    <form method="post">
-        {% csrf_token %}
+<div class="page-head">
+    <div>
+        <span class="eyebrow">{{ product.category.name }}</span>
+        <h1>{% if is_editing %}Edit your review{% else %}Review{% endif %}: {{ product }}</h1>
+        <p>Score every criterion from 1 to 10 based on your own experience. Your scores feed the consensus summary other buyers see.</p>
+    </div>
+</div>
+
+{% if criteria_errors or form.errors %}
+    <div class="alert alert-danger" role="alert">
+        <strong>Please fix the following:</strong>
+        <ul style="margin-left:var(--space-5);">
+            {% for err in criteria_errors %}<li>{{ err }}</li>{% endfor %}
+            {% for field in form %}{% for err in field.errors %}<li>{{ field.label }}: {{ err }}</li>{% endfor %}{% endfor %}
+        </ul>
+    </div>
+{% endif %}
+
+<form method="post" class="card">
+    {% csrf_token %}
+    <h2 style="font-size:var(--text-lg); margin-bottom:var(--space-3);">1. Score each criterion</h2>
+    <div class="form-grid">
         {% for crit in criteria_list %}
             <div>
-                <label for="criteria_{{ crit.id }}">{{ crit.name }}</label>
-                <input type="number" id="criteria_{{ crit.id }}" name="criteria_{{ crit.id }}" min="1" max="10" value="{{ crit.initial_score }}" required>
+                <label for="criteria_{{ crit.id }}">{% if crit.parent_id %}↳ {% endif %}{{ crit.name }}</label>
+                <input type="number" id="criteria_{{ crit.id }}" name="criteria_{{ crit.id }}" min="1" max="10" step="1" inputmode="numeric" placeholder="1 - 10" value="{{ crit.initial_score|default_if_none:'' }}" required>
             </div>
         {% endfor %}
-        {{ form.as_p }}
-        <button type="submit" class="btn">Save Review</button>
-    </form>
-</div>
+    </div>
+
+    <h2 style="font-size:var(--text-lg); margin: var(--space-5) 0 var(--space-3);">2. Your experience</h2>
+    {% for field in form %}
+        <div style="margin-bottom:var(--space-4);">
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+        </div>
+    {% endfor %}
+
+    <div style="display:flex; gap:var(--space-3);">
+        <button type="submit" class="btn">Save review</button>
+        <a href="{% url 'catalog:product_detail' product.slug %}" class="btn btn-outline">Cancel</a>
+    </div>
+</form>
 {% endblock %}
