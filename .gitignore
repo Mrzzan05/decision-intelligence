@@ -31,3 +31,4 @@ db.sqlite3-journal
 # OS generated files
 Thumbs.db
 .DS_Store
+*.zip
