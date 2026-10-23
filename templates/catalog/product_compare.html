@@ -27,20 +27,68 @@
     </div>
 {% endif %}
 
-<form method="get" class="card">
-    <h3 style="margin-bottom:var(--space-2);"><i data-lucide="check-square" class="icon-inline"></i> Select Products to Compare (Max 4 Same-Category)</h3>
-    <div class="spec-pills">
-        {% for prod in all_products %}
-            <label class="spec-pill" style="cursor:pointer;">
-                <input type="checkbox" name="p" value="{{ prod.slug }}" {% if prod.slug in selected_slugs %}checked{% endif %}>
-                <strong>{{ prod.brand }}</strong> {{ prod.name }} ({{ prod.category.name }} &middot; &dollar;{{ prod.price }})
-            </label>
-        {% endfor %}
+<div class="card">
+    <div class="flex-between" style="margin-bottom: var(--space-3);">
+        <div>
+            <span class="text-muted" style="font-size: var(--text-xs); font-weight: 700; text-transform: uppercase;">Step 1: Select Category</span>
+            <div class="cat-tab-bar" id="dynamic_category_tabs" style="margin-top: var(--space-2); margin-bottom: 0;"></div>
+        </div>
+        <div style="display: flex; gap: var(--space-2);">
+            <button type="button" class="btn btn-outline btn-sm" id="clear_slots_btn">
+                <i data-lucide="trash-2" class="icon-inline"></i> Clear Slots
+            </button>
+            <button type="button" class="btn" id="submit_slots_btn">
+                <i data-lucide="scale" class="icon-inline"></i> Compare Selected Models
+            </button>
+        </div>
     </div>
-    <button type="submit" class="btn btn-sm" style="margin-top:var(--space-2);">
-        <i data-lucide="refresh-cw" class="icon-inline"></i> Compare Selected Models
-    </button>
-</form>
+
+    <span class="text-muted" style="font-size: var(--text-xs); font-weight: 700; text-transform: uppercase; display: block; margin-bottom: var(--space-2);">
+        Step 2: Click Any Slot Below to Filter by Brand &amp; Pick a Model (Up to 4 Models)
+    </span>
+
+    <div class="slots-grid" id="comparison_slots_container"></div>
+
+    <form id="compare_form" method="get" style="display: none;">
+        {% for key, val in weight_params.items %}
+            <input type="hidden" name="{{ key }}" value="{{ val }}">
+        {% endfor %}
+        {% for prod in all_products %}
+            <input
+                type="checkbox"
+                name="p"
+                id="chk_{{ prod.slug }}"
+                value="{{ prod.slug }}"
+                data-slug="{{ prod.slug }}"
+                data-name="{{ prod.name }}"
+                data-brand="{{ prod.brand }}"
+                data-price="{{ prod.price }}"
+                data-category="{{ prod.category.slug }}"
+                data-catname="{{ prod.category.name }}"
+                {% if prod.slug in selected_slugs %}checked{% endif %}
+            >
+        {% endfor %}
+    </form>
+</div>
+
+<div class="picker-modal-backdrop" id="model_picker_modal">
+    <div class="picker-modal">
+        <div class="picker-modal-header">
+            <div>
+                <h3 id="modal_title">Select a Model</h3>
+                <p class="text-muted" style="font-size: var(--text-xs);">Filter by brand, then click a model to assign it to the selected slot.</p>
+            </div>
+            <button type="button" class="btn btn-outline btn-sm" id="close_modal_btn">&times; Close</button>
+        </div>
+        <div class="picker-modal-body">
+            <div style="margin-bottom: var(--space-3);">
+                <input type="text" id="modal_search_input" placeholder="Search model name or brand...">
+            </div>
+            <div class="brand-filter-bar" id="modal_brand_chips"></div>
+            <div class="modal-product-grid" id="modal_product_list"></div>
+        </div>
+    </div>
+</div>
 
 {% if compared_products %}
     <!-- Visual Comparison: Animated Radar Chart & Grouped Bar Chart Switcher -->
@@ -301,4 +349,346 @@
         if (identicalCount > 0) toggleIdenticalRows();   // differences first; one click to show everything
     </script>
 {% endif %}
+
+<script>
+(function() {
+    const checkboxes = Array.from(document.querySelectorAll("#compare_form input[name='p']"));
+    const catalog = checkboxes.map(function(el) {
+        return {
+            slug: el.dataset.slug || "",
+            name: el.dataset.name || "",
+            brand: el.dataset.brand || "",
+            price: el.dataset.price || "0.00",
+            category: el.dataset.category || "",
+            catname: el.dataset.catname || el.dataset.category || "",
+            checked: el.checked
+        };
+    });
+
+    const categoryMap = new Map();
+    catalog.forEach(function(item) {
+        if (item.category && !categoryMap.has(item.category)) {
+            categoryMap.set(item.category, item.catname);
+        }
+    });
+    const categories = Array.from(categoryMap.entries()).map(function(entry) {
+        return { slug: entry[0], name: entry[1] };
+    });
+
+    const initialChosen = catalog.filter(function(i) { return i.checked; });
+    let activeCategory = initialChosen.length > 0
+        ? initialChosen[0].category
+        : (categories.length > 0 ? categories[0].slug : "");
+
+    let slots = [null, null, null, null];
+    initialChosen.slice(0, 4).forEach(function(item, idx) {
+        slots[idx] = item;
+    });
+
+    let activeSlotIndex = 0;
+    let activeBrand = "ALL";
+
+    function syncCheckboxes() {
+        catalog.forEach(function(item) {
+            const chk = document.getElementById("chk_" + item.slug);
+            if (chk) {
+                chk.checked = slots.some(function(s) { return s && s.slug === item.slug; });
+            }
+        });
+    }
+
+    function renderCategoryTabs() {
+        const bar = document.getElementById("dynamic_category_tabs");
+        if (!bar) return;
+        bar.textContent = "";
+        categories.forEach(function(cat) {
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "cat-tab-btn" + (cat.slug === activeCategory ? " active" : "");
+            btn.textContent = cat.name;
+            btn.addEventListener("click", function() {
+                const hasOther = slots.some(function(s) { return s && s.category !== cat.slug; });
+                if (hasOther) {
+                    slots = [null, null, null, null];
+                    syncCheckboxes();
+                }
+                activeCategory = cat.slug;
+                renderCategoryTabs();
+                renderSlots();
+            });
+            bar.appendChild(btn);
+        });
+    }
+
+    function renderSlots() {
+        const container = document.getElementById("comparison_slots_container");
+        if (!container) return;
+        container.textContent = "";
+        const catName = categoryMap.get(activeCategory) || "Product";
+
+        slots.forEach(function(slotItem, idx) {
+            const card = document.createElement("div");
+            if (slotItem) {
+                card.className = "slot-card filled";
+                const top = document.createElement("div");
+
+                const head = document.createElement("div");
+                head.className = "flex-between";
+                const badge = document.createElement("span");
+                badge.className = "badge badge-primary";
+                badge.textContent = slotItem.brand;
+                const slotNum = document.createElement("span");
+                slotNum.className = "text-muted";
+                slotNum.style.fontSize = "var(--text-xs)";
+                slotNum.textContent = "Slot #" + (idx + 1);
+                head.appendChild(badge);
+                head.appendChild(slotNum);
+
+                const title = document.createElement("h3");
+                title.style.fontSize = "var(--text-base)";
+                title.style.margin = "0.4rem 0";
+                title.textContent = slotItem.name;
+
+                const price = document.createElement("p");
+                price.className = "text-muted";
+                price.style.fontSize = "var(--text-sm)";
+                price.style.fontWeight = "700";
+                price.textContent = "$" + slotItem.price;
+
+                top.appendChild(head);
+                top.appendChild(title);
+                top.appendChild(price);
+
+                const actions = document.createElement("div");
+                actions.style.display = "flex";
+                actions.style.gap = "0.4rem";
+                actions.style.marginTop = "0.75rem";
+
+                const changeBtn = document.createElement("button");
+                changeBtn.type = "button";
+                changeBtn.className = "btn btn-outline btn-sm";
+                changeBtn.style.flex = "1";
+                changeBtn.textContent = "Change";
+                changeBtn.addEventListener("click", function() { openModal(idx); });
+
+                const removeBtn = document.createElement("button");
+                removeBtn.type = "button";
+                removeBtn.className = "btn btn-danger btn-sm";
+                removeBtn.textContent = "Remove";
+                removeBtn.addEventListener("click", function() {
+                    slots[idx] = null;
+                    syncCheckboxes();
+                    renderSlots();
+                });
+
+                actions.appendChild(changeBtn);
+                actions.appendChild(removeBtn);
+                card.appendChild(top);
+                card.appendChild(actions);
+            } else {
+                card.className = "slot-card empty-slot";
+                const plus = document.createElement("div");
+                plus.style.fontSize = "1.5rem";
+                plus.style.color = "var(--primary)";
+                plus.textContent = "+";
+
+                const label = document.createElement("strong");
+                label.textContent = "Slot #" + (idx + 1) + ": Add Model";
+
+                const sub = document.createElement("span");
+                sub.className = "text-muted";
+                sub.style.fontSize = "var(--text-xs)";
+                sub.textContent = catName + " (Brand & Model)";
+
+                card.appendChild(plus);
+                card.appendChild(label);
+                card.appendChild(sub);
+                card.addEventListener("click", function() { openModal(idx); });
+            }
+            container.appendChild(card);
+        });
+    }
+
+    function openModal(slotIdx) {
+        activeSlotIndex = slotIdx;
+        activeBrand = "ALL";
+        const searchEl = document.getElementById("modal_search_input");
+        if (searchEl) searchEl.value = "";
+        const titleEl = document.getElementById("modal_title");
+        if (titleEl) {
+            titleEl.textContent = "Slot #" + (slotIdx + 1) + " - Select from " + (categoryMap.get(activeCategory) || "Catalog");
+        }
+        renderBrands();
+        renderModalItems();
+        const modal = document.getElementById("model_picker_modal");
+        if (modal) modal.classList.add("open");
+    }
+
+    function closeModal() {
+        const modal = document.getElementById("model_picker_modal");
+        if (modal) modal.classList.remove("open");
+    }
+
+    function renderBrands() {
+        const holder = document.getElementById("modal_brand_chips");
+        if (!holder) return;
+        holder.textContent = "";
+        const catItems = catalog.filter(function(i) { return i.category === activeCategory; });
+        const brands = Array.from(new Set(catItems.map(function(i) { return i.brand; }))).sort();
+
+        function makeChip(label, brandKey) {
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "brand-chip" + (activeBrand === brandKey ? " active" : "");
+            btn.textContent = label;
+            btn.addEventListener("click", function() {
+                activeBrand = brandKey;
+                renderBrands();
+                renderModalItems();
+            });
+            return btn;
+        }
+
+        holder.appendChild(makeChip("All Brands (" + catItems.length + ")", "ALL"));
+        brands.forEach(function(b) {
+            const count = catItems.filter(function(i) { return i.brand === b; }).length;
+            holder.appendChild(makeChip(b + " (" + count + ")", b));
+        });
+    }
+
+    function renderModalItems() {
+        const listEl = document.getElementById("modal_product_list");
+        if (!listEl) return;
+        listEl.textContent = "";
+        const q = (document.getElementById("modal_search_input")?.value || "").trim().toLowerCase();
+        const usedSlugs = new Set(slots.filter(Boolean).map(function(s) { return s.slug; }));
+
+        const filtered = catalog.filter(function(item) {
+            if (item.category !== activeCategory) return false;
+            if (activeBrand !== "ALL" && item.brand !== activeBrand) return false;
+            if (q && !(item.name.toLowerCase().includes(q) || item.brand.toLowerCase().includes(q))) return false;
+            return true;
+        });
+
+        if (filtered.length === 0) {
+            const emptyMsg = document.createElement("p");
+            emptyMsg.className = "text-muted";
+            emptyMsg.textContent = "No models match this filter.";
+            listEl.appendChild(emptyMsg);
+            return;
+        }
+
+        filtered.forEach(function(item) {
+            const isUsed = usedSlugs.has(item.slug) && (!slots[activeSlotIndex] || slots[activeSlotIndex].slug !== item.slug);
+            const card = document.createElement("div");
+            card.className = "modal-product-item" + (isUsed ? " already-selected" : "");
+
+            const top = document.createElement("div");
+            top.className = "flex-between";
+            const bBadge = document.createElement("span");
+            bBadge.className = "badge badge-primary";
+            bBadge.textContent = item.brand;
+            const pTag = document.createElement("strong");
+            pTag.style.fontSize = "var(--text-xs)";
+            pTag.textContent = "$" + item.price;
+            top.appendChild(bBadge);
+            top.appendChild(pTag);
+
+            const nameDiv = document.createElement("div");
+            nameDiv.style.fontWeight = "700";
+            nameDiv.style.marginTop = "0.35rem";
+            nameDiv.textContent = item.name;
+
+            const hint = document.createElement("div");
+            hint.className = "text-muted";
+            hint.style.fontSize = "var(--text-xs)";
+            hint.style.marginTop = "0.2rem";
+            hint.textContent = isUsed ? "Already in another slot" : "Click to assign to Slot #" + (activeSlotIndex + 1);
+
+            card.appendChild(top);
+            card.appendChild(nameDiv);
+            card.appendChild(hint);
+
+            if (!isUsed) {
+                card.addEventListener("click", function() {
+                    slots[activeSlotIndex] = item;
+                    syncCheckboxes();
+                    renderSlots();
+                    closeModal();
+                });
+            }
+            listEl.appendChild(card);
+        });
+    }
+
+    document.getElementById("clear_slots_btn")?.addEventListener("click", function() {
+        slots = [null, null, null, null];
+        syncCheckboxes();
+        renderSlots();
+    });
+    document.getElementById("submit_slots_btn")?.addEventListener("click", function() {
+        document.getElementById("compare_form")?.submit();
+    });
+    document.getElementById("close_modal_btn")?.addEventListener("click", closeModal);
+    document.getElementById("model_picker_modal")?.addEventListener("click", function(e) {
+        if (e.target === this) closeModal();
+    });
+    document.getElementById("modal_search_input")?.addEventListener("input", renderModalItems);
+
+    renderCategoryTabs();
+    renderSlots();
+
+    let compareChartInstance = null;
+    let currentChartType = "radar";
+
+    function renderCompareChart() {
+        const payloadEl = document.getElementById("compare_chart_payload");
+        const canvas = document.getElementById("compare_visual_chart");
+        if (!payloadEl || !canvas || !window.Chart) return;
+        const chartData = JSON.parse(payloadEl.textContent || "{}");
+        if (!chartData.labels || !chartData.datasets) return;
+
+        if (compareChartInstance) compareChartInstance.destroy();
+        const isDark = document.documentElement.getAttribute("data-theme") === "dark" ||
+            (document.documentElement.getAttribute("data-theme") === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+        const textColor = isDark ? "#cbd5e1" : "#334155";
+        const gridColor = isDark ? "rgba(148, 163, 184, 0.2)" : "rgba(100, 116, 139, 0.2)";
+        const isRadar = currentChartType === "radar";
+
+        compareChartInstance = new Chart(canvas, {
+            type: currentChartType,
+            data: chartData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { labels: { color: textColor } } },
+                scales: isRadar ? {
+                    r: {
+                        min: 0, max: 10,
+                        ticks: { stepSize: 2, color: textColor, backdropColor: "transparent" },
+                        grid: { color: gridColor },
+                        angleLines: { color: gridColor },
+                        pointLabels: { color: textColor }
+                    }
+                } : {
+                    x: { ticks: { color: textColor }, grid: { color: gridColor } },
+                    y: { min: 0, max: 10, ticks: { color: textColor }, grid: { color: gridColor } }
+                }
+            }
+        });
+    }
+
+    document.getElementById("btn_chart_radar")?.addEventListener("click", function() {
+        currentChartType = "radar";
+        renderCompareChart();
+    });
+    document.getElementById("btn_chart_bar")?.addEventListener("click", function() {
+        currentChartType = "bar";
+        renderCompareChart();
+    });
+    window.updateDecisionChartTheme = renderCompareChart;
+    renderCompareChart();
+})();
+</script>
+
 {% endblock %}

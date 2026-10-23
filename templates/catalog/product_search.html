@@ -1,81 +1,106 @@
 {% extends "base.html" %}
 
-{% block title %}Search &amp; Filter Products{% endblock %}
+{% block title %}Search & Filter Products - Decision Intelligence{% endblock %}
 
 {% block content %}
-<div class="page-head">
-    <div>
-        <span class="eyebrow">Catalog</span>
-        <h1>Find products</h1>
-        <p>Filter by category, budget and minimum review score, then add up to four products to the comparison tray.</p>
-    </div>
-</div>
+<h1><i data-lucide="search" class="icon-inline"></i> Search &amp; Filter Catalog</h1>
+<p class="text-muted" style="margin-bottom: var(--space-4);">
+    Filter by keyword, category, price range, and minimum rating, or sort results below.
+</p>
 
-<form method="get" class="card" role="search">
-    <div class="form-grid" style="align-items:end;">
+<form method="get" class="card">
+    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); gap:1rem; align-items:end;">
         <div>
-            <label for="q">Keyword</label>
-            <input id="q" type="text" name="q" value="{{ query }}" placeholder="Brand, model, spec...">
+            <label for="id_q">Keyword</label>
+            <input type="text" id="id_q" name="q" value="{{ query }}" placeholder="Brand, model, spec...">
         </div>
         <div>
-            <label for="category">Category</label>
-            <select id="category" name="category">
-                <option value="">All categories</option>
+            <label for="id_cat">Category</label>
+            <select id="id_cat" name="category">
+                <option value="">All Categories</option>
                 {% for cat in categories %}
                     <option value="{{ cat.slug }}" {% if selected_category == cat.slug %}selected{% endif %}>{{ cat.name }}</option>
                 {% endfor %}
             </select>
         </div>
         <div>
-            <label for="min_price">Min price (USD)</label>
-            <input id="min_price" type="number" min="0" name="min_price" value="{{ min_price }}" placeholder="0">
+            <label for="id_min_p">Min Price (USD)</label>
+            <input type="number" id="id_min_p" name="min_price" value="{{ min_price }}" placeholder="0">
         </div>
         <div>
-            <label for="max_price">Max price (USD)</label>
-            <input id="max_price" type="number" min="0" name="max_price" value="{{ max_price }}" placeholder="2500">
+            <label for="id_max_p">Max Price (USD)</label>
+            <input type="number" id="id_max_p" name="max_price" value="{{ max_price }}" placeholder="2500">
         </div>
         <div>
-            <label for="min_score">Min score (1-10)</label>
-            <input id="min_score" type="number" step="0.5" min="1" max="10" name="min_score" value="{{ min_score }}" placeholder="7.0">
+            <label for="id_min_s">Min Score (1-10)</label>
+            <input type="number" id="id_min_s" step="0.5" min="1" max="10" name="min_score" value="{{ min_score }}" placeholder="7.0">
         </div>
-        <div style="display:flex; gap:var(--space-2);">
-            <button type="submit" class="btn btn-block">Apply</button>
-            <a href="{% url 'catalog:product_search' %}" class="btn btn-outline">Reset</a>
+        <div>
+            <label for="id_sort">Sort By</label>
+            <select id="id_sort" name="sort">
+                <option value="score_desc" {% if sort == 'score_desc' %}selected{% endif %}>Highest Rated</option>
+                <option value="price_asc" {% if sort == 'price_asc' %}selected{% endif %}>Price: Low to High</option>
+                <option value="price_desc" {% if sort == 'price_desc' %}selected{% endif %}>Price: High to Low</option>
+                <option value="name_asc" {% if sort == 'name_asc' %}selected{% endif %}>Brand &amp; Name (A-Z)</option>
+            </select>
+        </div>
+        <div>
+            <button type="submit" class="btn btn-block">Apply Filters</button>
         </div>
     </div>
 </form>
 
-<p class="text-muted" style="margin-bottom:var(--space-3);" aria-live="polite">{{ products|length }} product{{ products|length|pluralize }} found</p>
-
 <div class="grid-3">
     {% for product in products %}
-        <article class="card product-card">
-            <div class="flex-between">
-                <span class="badge badge-primary">{{ product.category.name }}</span>
-                <span class="price">&dollar;{{ product.price }}</span>
-            </div>
-            <h3><a href="{% url 'catalog:product_detail' product.slug %}">{{ product.brand }} {{ product.name }}</a></h3>
-            {% if product.description %}<p class="text-muted" style="font-size:var(--text-sm);">{{ product.description|truncatechars:120 }}</p>{% endif %}
-            {% if product.review_count > 0 %}
-                <div>
-                    <div class="crit-head" style="display:flex; justify-content:space-between; font-size:var(--text-sm);">
-                        <span>Average score</span><strong>{{ product.average_score|floatformat:1 }}/10</strong>
-                    </div>
-                    <div class="score-bar-track"><div class="score-bar-fill" style="width: {% widthratio product.average_score 10 100 %}%;"></div></div>
-                    <span class="field-hint">{{ product.review_count }} review{{ product.review_count|pluralize }}</span>
+        <div class="card" style="display:flex; flex-direction:column; justify-content:space-between;">
+            <div>
+                <div class="flex-between">
+                    <span class="badge badge-primary">{{ product.category.name }}</span>
+                    <strong>&dollar;{{ product.price }}</strong>
                 </div>
-            {% else %}
-                <span class="badge badge-warning" style="align-self:flex-start;">Insufficient data (0 reviews)</span>
-            {% endif %}
-            <div class="card-actions">
-                <a href="{% url 'catalog:product_detail' product.slug %}" class="btn btn-outline btn-sm">Details</a>
-                <button type="button" class="btn btn-outline btn-sm" aria-pressed="false" data-compare-slug="{{ product.slug }}" data-compare-name="{{ product.brand }} {{ product.name }}" data-compare-category="{{ product.category.slug }}">
-                    <i data-lucide="scale" class="icon-inline"></i> <span class="compare-label">Compare</span>
-                </button>
+                <h3 style="margin: var(--space-2) 0;">
+                    <a href="{% url 'catalog:product_detail' product.slug %}">{{ product.brand }} {{ product.name }}</a>
+                </h3>
+                <p class="text-muted" style="font-size: var(--text-sm); margin-bottom: var(--space-3);">{{ product.description }}</p>
             </div>
-        </article>
+            <div>
+                {% if product.review_count > 0 %}
+                    <p style="font-size: var(--text-sm);">Avg Score: <strong>{{ product.average_score|floatformat:1 }} / 10</strong> ({{ product.review_count }} reviews)</p>
+                {% else %}
+                    <p class="text-muted" style="font-size: var(--text-sm);"><em>Insufficient data (0 reviews)</em></p>
+                {% endif %}
+                <div class="flex-between" style="margin-top: var(--space-3);">
+                    <button
+                        type="button"
+                        class="btn btn-outline btn-sm"
+                        data-compare-slug="{{ product.slug }}"
+                        data-compare-name="{{ product.brand }} {{ product.name }}"
+                        data-compare-category="{{ product.category.slug }}"
+                    >
+                        + <span class="compare-label">Compare</span>
+                    </button>
+                    <a href="{% url 'catalog:product_detail' product.slug %}" class="btn btn-sm">Details &rarr;</a>
+                </div>
+            </div>
+        </div>
     {% empty %}
-        <div class="card"><p>No products matched your filters. Try widening the price range or lowering the minimum score.</p></div>
+        <div class="card"><p>No products matched your filter criteria.</p></div>
     {% endfor %}
 </div>
+
+{% if page_obj and page_obj.paginator.num_pages > 1 %}
+    <div class="card flex-between" style="margin-top: var(--space-4);">
+        <span class="text-muted" style="font-size: var(--text-sm);">
+            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }} ({{ page_obj.paginator.count }} total models)
+        </span>
+        <div style="display: flex; gap: var(--space-2);">
+            {% if page_obj.has_previous %}
+                <a class="btn btn-outline btn-sm" href="?q={{ query }}&amp;category={{ selected_category }}&amp;min_price={{ min_price }}&amp;max_price={{ max_price }}&amp;min_score={{ min_score }}&amp;sort={{ sort }}&amp;page={{ page_obj.previous_page_number }}">&larr; Previous</a>
+            {% endif %}
+            {% if page_obj.has_next %}
+                <a class="btn btn-outline btn-sm" href="?q={{ query }}&amp;category={{ selected_category }}&amp;min_price={{ min_price }}&amp;max_price={{ max_price }}&amp;min_score={{ min_score }}&amp;sort={{ sort }}&amp;page={{ page_obj.next_page_number }}">Next &rarr;</a>
+            {% endif %}
+        </div>
+    </div>
+{% endif %}
 {% endblock %}

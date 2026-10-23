@@ -1,49 +1,146 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard — Decision Intelligence{% endblock %}
+{% block title %}Dashboard - Decision Intelligence{% endblock %}
 
 {% block content %}
-<div class="page-head">
-    <div>
-        <span class="eyebrow">Your dashboard</span>
-        <h1>Decision overview</h1>
-        <p>Your shortlist, your reviews, and how well your expectations matched reality.</p>
+<section class="dashboard-hero-card">
+    <div class="flex-between">
+        <div>
+            <span class="badge badge-primary" style="margin-bottom: var(--space-1);">
+                <i data-lucide="layout-dashboard" class="icon-inline"></i> Your dashboard
+            </span>
+            <h1 style="font-size: var(--text-2xl); margin: 0.2rem 0;">Decision overview</h1>
+            <p class="text-muted" style="font-size: var(--text-sm);">
+                Your shortlist, your reviews, and how well your expectations matched reality.
+            </p>
+            {% if user.preference and user.preference.preferred_category %}
+                <div style="margin-top: var(--space-2);">
+                    <span class="badge badge-success">
+                        <i data-lucide="heart" class="icon-inline"></i>
+                        Favorite Category:
+                        <a href="{% url 'recommendations:category_recommendations' user.preference.preferred_category.slug %}" style="color: inherit; text-decoration: underline;">
+                            {{ user.preference.preferred_category.name }}
+                        </a>
+                        {% if user.preference.default_budget %}
+                            (Target Budget: &dollar;{{ user.preference.default_budget }})
+                        {% endif %}
+                    </span>
+                </div>
+            {% endif %}
+        </div>
+        <div style="display: flex; gap: var(--space-2); flex-wrap: wrap;">
+            <a href="{% url 'journal_list' %}" class="btn btn-outline">
+                <i data-lucide="book-open-check" class="icon-inline"></i> Open journal
+            </a>
+            <a href="{% url 'accounts:profile' %}" class="btn btn-outline">
+                <i data-lucide="sliders" class="icon-inline"></i> Preferences
+            </a>
+        </div>
     </div>
-    <a href="{% url 'journal_list' %}" class="btn btn-outline"><i data-lucide="book-open-check" class="icon-inline"></i> Open journal</a>
-</div>
+</section>
 
-<div class="stat-grid">
-    <div class="stat"><div class="stat-label">Logged decisions</div><div class="stat-value">{{ decision_count }}</div></div>
-    <div class="stat"><div class="stat-label">Avg expected</div><div class="stat-value">{{ avg_expected }}<span class="text-muted" style="font-size:var(--text-base);">/10</span></div><div class="stat-hint">before buying</div></div>
-    <div class="stat"><div class="stat-label">Avg actual</div><div class="stat-value">{{ avg_actual }}<span class="text-muted" style="font-size:var(--text-base);">/10</span></div><div class="stat-hint">after real use</div></div>
-</div>
+<section class="kpi-grid">
+    <div class="kpi-card">
+        <div>
+            <div class="kpi-header">
+                <span>Logged decisions</span>
+                <i data-lucide="check-circle-2" class="icon-inline" style="color: var(--primary);"></i>
+            </div>
+            <div class="kpi-value" style="color: var(--primary);">{{ decision_count }}</div>
+        </div>
+        <div class="kpi-sub">Total choices recorded in your journal</div>
+    </div>
 
-<div class="grid-2">
-    <section class="card">
-        <h2 style="font-size:var(--text-lg);">Saved products ({{ saved_products|length }})</h2>
+    <div class="kpi-card">
+        <div>
+            <div class="kpi-header">
+                <span>Avg expected</span>
+                <i data-lucide="sparkles" class="icon-inline" style="color: var(--warning);"></i>
+            </div>
+            <div class="kpi-value">{{ avg_expected }}<span class="text-muted" style="font-size: var(--text-base); font-weight: 500;">/10</span></div>
+            <div class="score-bar-track">
+                <div class="score-bar-fill" style="width: {% widthratio avg_expected 10 100 %}%;"></div>
+            </div>
+        </div>
+        <div class="kpi-sub">before buying</div>
+    </div>
+
+    <div class="kpi-card">
+        <div>
+            <div class="kpi-header">
+                <span>Avg actual</span>
+                <i data-lucide="award" class="icon-inline" style="color: var(--success);"></i>
+            </div>
+            <div class="kpi-value" style="color: var(--success);">{{ avg_actual }}<span class="text-muted" style="font-size: var(--text-base); font-weight: 500;">/10</span></div>
+            <div class="score-bar-track">
+                <div class="score-bar-fill" style="width: {% widthratio avg_actual 10 100 %}%;"></div>
+            </div>
+        </div>
+        <div class="kpi-sub">after real use</div>
+    </div>
+</section>
+
+<div class="grid-2" style="margin-bottom: var(--space-5);">
+    <div class="card" style="margin-bottom: 0;">
+        <div class="flex-between" style="margin-bottom: var(--space-3); padding-bottom: var(--space-2); border-bottom: 1px solid var(--border);">
+            <h3><i data-lucide="bookmark" class="icon-inline"></i> Saved products ({{ saved_products|length }})</h3>
+            <a href="{% url 'catalog:product_search' %}" class="btn btn-outline btn-sm">Browse catalog</a>
+        </div>
         {% for item in saved_products %}
-            <div class="flex-between" style="padding:var(--space-2) 0; border-bottom:1px solid var(--border);">
-                <a href="{% url 'catalog:product_detail' item.product.slug %}"><strong>{{ item.product }}</strong></a>
-                <span class="text-muted">&dollar;{{ item.product.price }}</span>
+            <div class="flex-between" style="padding: 0.6rem 0; border-bottom: 1px solid var(--border);">
+                <div>
+                    <a href="{% url 'catalog:product_detail' item.product.slug %}"><strong>{{ item.product }}</strong></a>
+                    <span class="text-muted" style="font-size: var(--text-xs);">&dollar;{{ item.product.price }}</span>
+                </div>
                 <a href="{% url 'record_decision' item.product.slug %}" class="btn btn-outline btn-sm">Decide</a>
             </div>
         {% empty %}
-            <p class="text-muted">Nothing saved yet. Use <em>Save</em> on a product page to build a shortlist.</p>
+            <p class="text-muted" style="font-size: var(--text-sm);">Nothing saved yet. Use <em>Save</em> on a product page to build a shortlist.</p>
         {% endfor %}
-    </section>
+    </div>
 
-    <section class="card">
-        <h2 style="font-size:var(--text-lg);">My reviews ({{ user_reviews|length }})</h2>
+    <div class="card" style="margin-bottom: 0;">
+        <div class="flex-between" style="margin-bottom: var(--space-3); padding-bottom: var(--space-2); border-bottom: 1px solid var(--border);">
+            <h3><i data-lucide="message-square" class="icon-inline"></i> My reviews ({{ user_reviews|length }})</h3>
+            <a href="{% url 'catalog:product_search' %}" class="btn btn-outline btn-sm">Rate a product</a>
+        </div>
         {% for rev in user_reviews %}
-            <div class="flex-between" style="padding:var(--space-2) 0; border-bottom:1px solid var(--border);">
-                <a href="{% url 'catalog:product_detail' rev.product.slug %}"><strong>{{ rev.product }}</strong></a>
-                <span class="badge badge-primary">{{ rev.overall_rating }}/10</span>
+            <div class="flex-between" style="padding: 0.6rem 0; border-bottom: 1px solid var(--border);">
+                <div>
+                    <a href="{% url 'catalog:product_detail' rev.product.slug %}"><strong>{{ rev.product }}</strong></a>
+                    <span class="badge badge-primary">{{ rev.overall_rating }}/10</span>
+                </div>
                 <a href="{% url 'reviews:write_review' rev.product.slug %}" class="btn btn-outline btn-sm">Edit</a>
             </div>
         {% empty %}
-            <p class="text-muted">You haven't reviewed anything yet.</p>
+            <p class="text-muted" style="font-size: var(--text-sm);">You haven't reviewed anything yet.</p>
         {% endfor %}
-    </section>
+    </div>
+</div>
+
+<div class="card" style="margin-bottom: var(--space-5);">
+    <div class="flex-between" style="margin-bottom: var(--space-3);">
+        <h3><i data-lucide="history" class="icon-inline"></i> Recent decision history ({{ decisions|length }})</h3>
+        <a href="{% url 'journal_list' %}" class="btn btn-outline btn-sm">View full journal</a>
+    </div>
+    {% for entry in decisions %}
+        <div class="flex-between" style="padding: 0.65rem 0; border-bottom: 1px solid var(--border);">
+            <div>
+                <span class="badge badge-primary">{{ entry.category.name }}</span>
+                <a href="{% url 'catalog:product_detail' entry.chosen_product.slug %}" style="margin-left: 0.4rem;">
+                    <strong>{{ entry.chosen_product }}</strong>
+                </a>
+                <span class="text-muted" style="font-size: var(--text-xs); margin-left: 0.4rem;">{{ entry.created_at|date:"M d, Y" }}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: var(--space-2);">
+                <span class="spec-pill">Expected: {{ entry.expected_rating|default:"-" }}/10</span>
+                <span class="spec-pill">Actual: {{ entry.satisfaction_rating|default:"Pending" }}/10</span>
+                <a href="{% url 'update_decision' entry.id %}" class="btn btn-outline btn-sm">Update outcome</a>
+            </div>
+        </div>
+    {% empty %}
+        <p class="text-muted" style="font-size: var(--text-sm);">No decisions recorded yet. Launch a category matrix to record your first choice.</p>
+    {% endfor %}
 </div>
 
 <h2 style="margin: var(--space-5) 0 var(--space-3);">Platform analytics</h2>

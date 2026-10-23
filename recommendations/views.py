@@ -57,3 +57,39 @@ def category_recommendations_view(
         "query_string": request.GET.urlencode(),
     }
     return render(request, "recommendations/category_recommendations.html", context)
+
+
+def category_recommendations_api_view(
+    request: HttpRequest,
+    category_slug: str,
+) -> HttpResponse:
+    from django.http import JsonResponse
+
+    category = get_object_or_404(Category, slug=category_slug)
+    weights = parse_criteria_weights_from_params(request.GET)
+    ranked_products = rank_products_for_category(category=category, weights=weights)
+
+    results = [
+        {
+            "rank": idx + 1,
+            "slug": p.slug,
+            "brand": p.brand,
+            "name": p.name,
+            "price": float(p.price),
+            "weighted_score": getattr(p, "weighted_score", None),
+            "match_percentage": getattr(p, "match_percentage", None),
+            "has_sufficient_data": getattr(p, "has_sufficient_data", False),
+            "dealbreakers": getattr(p, "dealbreakers", []),
+            "criteria_scores": getattr(p, "criteria_scores", {}),
+            "smart_summary": getattr(p, "smart_summary", {}),
+        }
+        for idx, p in enumerate(ranked_products)
+    ]
+    return JsonResponse(
+        {
+            "category": {"name": category.name, "slug": category.slug},
+            "applied_weights": weights,
+            "count": len(results),
+            "results": results,
+        }
+    )

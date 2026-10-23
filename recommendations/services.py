@@ -3,7 +3,7 @@ import json
 from collections import defaultdict
 from collections.abc import Mapping
 from typing import Any
-from django.db.models import Avg, Count, Q, StdDev
+from django.db.models import Avg, Count, Max, Q, StdDev
 from django.db.models.functions import TruncMonth
 
 from catalog.models import Category, Criteria, Product
@@ -218,11 +218,14 @@ def rank_products_for_category(
             criteria_stddev=StdDev("score", sample=False),
             total_votes=Count("id"),
             satisfied_votes=Count("id", filter=Q(score__gte=7)),
+            sample_pro=Max("review__pros"),
+            sample_con=Max("review__cons"),
         )
     )
 
     product_stats_map: dict[int, dict[int, dict[str, float | int]]] = defaultdict(dict)
     product_criteria_map: dict[int, dict[int, float]] = defaultdict(dict)
+    product_written_map: dict[int, dict[str, str]] = defaultdict(lambda: {'pro': '', 'con': ''})
     criteria_totals_across_category: dict[int, list[float]] = defaultdict(list)
 
     for row in aggregated_scores:
@@ -234,6 +237,10 @@ def rank_products_for_category(
         sat_v = int(row["satisfied_votes"] or 0)
 
         product_criteria_map[product_id][crit_id] = avg_val
+        if row.get("sample_pro") and not product_written_map[product_id]["pro"]:
+            product_written_map[product_id]["pro"] = str(row["sample_pro"]).strip()
+        if row.get("sample_con") and not product_written_map[product_id]["con"]:
+            product_written_map[product_id]["con"] = str(row["sample_con"]).strip()
         product_stats_map[product_id][crit_id] = {
             "avg": avg_val,
             "stddev": stddev_val,
@@ -318,6 +325,18 @@ def rank_products_for_category(
             effective_weights=effective_weights,
             review_count=rev_count,
         )
+
+        written_notes = product_written_map.get(product.id, {"pro": "", "con": ""})
+        product.smart_summary["written_pro"] = written_notes["pro"]
+        product.smart_summary["written_con"] = written_notes["con"]
+        if written_notes["pro"] and len(product.smart_summary["pros"]) < 3:
+            note_pro = f'Reviewer highlight: "{written_notes["pro"]}"'
+            if note_pro not in product.smart_summary["pros"]:
+                product.smart_summary["pros"].append(note_pro)
+        if written_notes["con"] and len(product.smart_summary["cons"]) < 3:
+            note_con = f'Reported trade-off: "{written_notes["con"]}"'
+            if note_con not in product.smart_summary["cons"]:
+                product.smart_summary["cons"].append(note_con)
 
     products.sort(
         key=lambda p: (

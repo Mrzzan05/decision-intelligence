@@ -1,6 +1,8 @@
+import math
 from decimal import Decimal, InvalidOperation
 from urllib.parse import urlencode
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -13,34 +15,37 @@ from recommendations.services import (
 )
 
 
+def _parse_finite_decimal(raw: str) -> Decimal | None:
+    if not raw:
+        return None
+    try:
+        val = Decimal(raw)
+    except (InvalidOperation, ValueError):
+        return None
+    return val if val.is_finite() and val >= 0 else None
+
+
+def _parse_finite_score(raw: str) -> float | None:
+    if not raw:
+        return None
+    try:
+        val = float(raw)
+    except ValueError:
+        return None
+    return val if math.isfinite(val) and 0.0 <= val <= 10.0 else None
+
+
 def product_search_view(request: HttpRequest) -> HttpResponse:
     query = request.GET.get("q", "").strip()
     category_slug = request.GET.get("category", "").strip()
     raw_min_price = request.GET.get("min_price", "").strip()
     raw_max_price = request.GET.get("max_price", "").strip()
     raw_min_score = request.GET.get("min_score", "").strip()
+    sort_by = request.GET.get("sort", "score_desc").strip()
 
-    min_price = None
-    max_price = None
-    min_score = None
-
-    try:
-        if raw_min_price:
-            min_price = Decimal(raw_min_price)
-    except InvalidOperation:
-        pass
-
-    try:
-        if raw_max_price:
-            max_price = Decimal(raw_max_price)
-    except InvalidOperation:
-        pass
-
-    try:
-        if raw_min_score:
-            min_score = float(raw_min_score)
-    except ValueError:
-        pass
+    min_price = _parse_finite_decimal(raw_min_price)
+    max_price = _parse_finite_decimal(raw_max_price)
+    min_score = _parse_finite_score(raw_min_score)
 
     products = (
         Product.objects.select_related("category")
@@ -52,15 +57,29 @@ def product_search_view(request: HttpRequest) -> HttpResponse:
     if min_score is not None:
         products = products.filter(average_score__gte=min_score)
 
+    sort_Options = {
+        "score_desc": ("-average_score", "brand", "name"),
+        "price_asc": ("price", "brand", "name"),
+        "price_desc": ("-price", "brand", "name"),
+        "name_asc": ("brand", "name"),
+    }
+    order_fields = sort_Options.get(sort_by, sort_Options["score_desc"])
+    products = products.order_by(*order_fields)
+
+    paginator = Paginator(products, 12)
+    page_obj = paginator.get_page(request.GET.get("page"))
+
     categories = Category.objects.all()
     context = {
-        "products": products,
+        "products": page_obj,
+        "page_obj": page_obj,
         "categories": categories,
         "query": query,
         "selected_category": category_slug,
-        "min_price": raw_min_price,
-        "max_price": raw_max_price,
-        "min_score": raw_min_score,
+        "min_price": raw_min_price if min_price is not None else "",
+        "max_price": raw_max_price if max_price is not None else "",
+        "min_score": raw_min_score if min_score is not None else "",
+        "sort": sort_by if sort_by in sort_Options else "score_desc",
     }
     return render(request, "catalog/product_search.html", context)
 

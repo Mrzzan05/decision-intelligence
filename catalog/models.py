@@ -122,6 +122,36 @@ class Product(TimeStampedModel):
         verbose_name_plural = "Products"
         ordering = ["brand", "name"]
 
+    def clean(self) -> None:
+        super().clean()
+        if not isinstance(self.specs, dict):
+            raise ValidationError({"specs": "Specifications must be a valid JSON object (dictionary)."})
+        if self.category_id and self.category.spec_schema:
+            schema_map = {
+                item["key"]: item
+                for item in self.category.spec_schema
+                if isinstance(item, dict) and "key" in item
+            }
+            unknown_keys = sorted(set(self.specs.keys()) - set(schema_map.keys()))
+            if unknown_keys:
+                raise ValidationError(
+                    {
+                        "specs": (
+                            f"Unknown specification keys for category '{self.category.name}': "
+                            f"{', '.join(unknown_keys)}."
+                        )
+                    }
+                )
+            for key, val in self.specs.items():
+                if val is None:
+                    continue
+                field_def = schema_map.get(key, {})
+                if field_def.get("higher_is_better") is not None:
+                    if isinstance(val, bool) or not isinstance(val, (int, float)):
+                        raise ValidationError(
+                            {"specs": f"Specification '{key}' must be a numeric value."}
+                        )
+
     def get_normalized_specs(self) -> list[dict[str, Any]]:
         """Return product specifications ordered and formatted by category.spec_schema."""
         schema = self.category.spec_schema or []

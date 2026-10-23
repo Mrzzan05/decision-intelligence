@@ -1,8 +1,18 @@
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Self
 from django.db import models
 from django.db.models import Avg, Count, FloatField, Q
 from django.db.models.functions import Coalesce
+
+
+def _to_finite_decimal(val: Decimal | float | str | None) -> Decimal | None:
+    if val is None:
+        return None
+    try:
+        d = val if isinstance(val, Decimal) else Decimal(str(val))
+    except (InvalidOperation, ValueError, TypeError):
+        return None
+    return d if d.is_finite() else None
 
 
 class ProductQuerySet(models.QuerySet):
@@ -27,10 +37,12 @@ class ProductQuerySet(models.QuerySet):
         max_price: Decimal | float | None = None,
     ) -> Self:
         qs = self
-        if min_price is not None:
-            qs = qs.filter(price__gte=min_price)
-        if max_price is not None:
-            qs = qs.filter(price__lte=max_price)
+        safe_min = _to_finite_decimal(min_price)
+        safe_max = _to_finite_decimal(max_price)
+        if safe_min is not None:
+            qs = qs.filter(price__gte=safe_min)
+        if safe_max is not None:
+            qs = qs.filter(price__lte=safe_max)
         return qs
 
     def with_average_scores(self) -> Self:

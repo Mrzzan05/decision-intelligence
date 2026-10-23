@@ -12,7 +12,14 @@ User = get_user_model()
 
 
 class Command(BaseCommand):
-    help = "Seed 20 laptops and smartphones (approximate public specs) with DEMO benchmarks and 100 synthetic demo reviews."
+    help = "Seed 20 laptops and smartphones with demo benchmark reviews. Use --reset to purge obsolete criteria."
+
+    def add_arguments(self, parser) -> None:
+        parser.add_argument(
+            "--reset",
+            action="store_true",
+            help="Optional: remove obsolete criteria before seeding.",
+        )
 
     @transaction.atomic
     def handle(self, *args, **options) -> None:
@@ -277,8 +284,8 @@ class Command(BaseCommand):
             {"key": "storage_gb", "label": "Internal Storage", "unit": "GB", "higher_is_better": True, "group": "Memory & Storage"},
             {"key": "main_camera_mp", "label": "Main Camera Sensor", "unit": "MP", "higher_is_better": True, "group": "Camera Hardware"},
             {"key": "peak_nits", "label": "Peak Display Brightness", "unit": "nits", "higher_is_better": True, "group": "Display & Design"},
-            {"key": "battery_mah", "label": "Battery Capacity", "unit": "mAh", "higher_is_better": True, "group": "Battery & Charging"},
-            {"key": "charging_w", "label": "Fast Wired Charging", "unit": "W", "higher_is_better": True, "group": "Battery & Charging"},
+            {"key": "battery_mah", "label": "Battery Capacity", "unit": "mAh", "higher_is_better": True, "group": "Battery Endurance"},
+            {"key": "charging_w", "label": "Fast Wired Charging", "unit": "W", "higher_is_better": True, "group": "Battery Endurance"},
             {"key": "weight_g", "label": "Weight", "unit": "g", "higher_is_better": False, "group": "Display & Design"},
         ]
 
@@ -290,15 +297,15 @@ class Command(BaseCommand):
                 "presets": {
                     "photographer": {
                         "label": "Pro Photographer",
-                        "weights": {"Camera System": 10, "Display Quality": 9, "Performance & Gaming": 6, "Battery & Charging": 6, "Software & Value": 6},
+                        "weights": {"Camera System": 10, "Display Quality": 9, "Performance & Gaming": 6, "Battery Endurance": 6, "Software & Value": 6},
                     },
                     "gamer": {
                         "label": "Mobile Gamer & Power",
-                        "weights": {"Performance & Gaming": 10, "Battery & Charging": 9, "Display Quality": 9, "Camera System": 5, "Software & Value": 7},
+                        "weights": {"Performance & Gaming": 10, "Battery Endurance": 9, "Display Quality": 9, "Camera System": 5, "Software & Value": 7},
                     },
                     "value": {
                         "label": "Smart Value Buyer",
-                        "weights": {"Software & Value": 10, "Battery & Charging": 9, "Display Quality": 8, "Performance & Gaming": 7, "Camera System": 7},
+                        "weights": {"Software & Value": 10, "Battery Endurance": 9, "Display Quality": 8, "Performance & Gaming": 7, "Camera System": 7},
                     },
                 },
             },
@@ -308,7 +315,14 @@ class Command(BaseCommand):
         p_lowlight, _ = Criteria.objects.update_or_create(
             category=phones, name="Low-Light & Zoom", defaults={"parent": p_cam}
         )
-        p_bat, _ = Criteria.objects.get_or_create(category=phones, name="Battery & Charging")
+        p_bat, _ = Criteria.objects.get_or_create(category=phones, name="Battery Endurance")
+        old_bat = Criteria.objects.filter(category=phones, name="Battery & Charging").first()
+        if old_bat and old_bat.id != p_bat.id:
+            for sc in ReviewScore.objects.filter(criteria=old_bat):
+                ReviewScore.objects.get_or_create(
+                    review=sc.review, criteria=p_bat, defaults={"score": sc.score}
+                )
+            old_bat.delete()
         p_disp, _ = Criteria.objects.get_or_create(category=phones, name="Display Quality")
         p_perf, _ = Criteria.objects.get_or_create(category=phones, name="Performance & Gaming")
         p_val, _ = Criteria.objects.get_or_create(category=phones, name="Software & Value")
