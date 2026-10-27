@@ -3,7 +3,7 @@ import json
 from collections import defaultdict
 from collections.abc import Mapping
 from typing import Any
-from django.db.models import Avg, Count, Max, Q, StdDev
+from django.db.models import Avg, Count, OuterRef, Q, StdDev, Subquery
 from django.db.models.functions import TruncMonth
 
 from catalog.models import Category, Criteria, Product
@@ -218,8 +218,18 @@ def rank_products_for_category(
             criteria_stddev=StdDev("score", sample=False),
             total_votes=Count("id"),
             satisfied_votes=Count("id", filter=Q(score__gte=7)),
-            sample_pro=Max("review__pros"),
-            sample_con=Max("review__cons"),
+            sample_pro=Subquery(
+                Review.objects.filter(product_id=OuterRef("review__product_id"))
+                .exclude(pros="")
+                .order_by("-overall_rating", "-created_at")
+                .values("pros")[:1]
+            ),
+            sample_con=Subquery(
+                Review.objects.filter(product_id=OuterRef("review__product_id"))
+                .exclude(cons="")
+                .order_by("-overall_rating", "-created_at")
+                .values("cons")[:1]
+            ),
         )
     )
 

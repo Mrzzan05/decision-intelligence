@@ -1,3 +1,4 @@
+from django.views.decorators.http import require_POST
 import math
 from decimal import Decimal, InvalidOperation
 from urllib.parse import urlencode
@@ -137,6 +138,7 @@ def product_compare_view(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
+@require_POST
 def toggle_saved_product_view(request: HttpRequest, product_slug: str) -> HttpResponse:
     """Bookmark or unbookmark a product, protecting against Open Redirect attacks."""
     product = get_object_or_404(Product, slug=product_slug)

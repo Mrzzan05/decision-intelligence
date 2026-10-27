@@ -4,7 +4,7 @@
 
 {% block content %}
 <style>#compare_tray { display: none !important; }</style>
-<div class="flex-between" style="margin-bottom: var(--space-4);">
+<div class="flex-between mb-4">
     <div>
         <h1><i data-lucide="git-compare" class="icon-inline"></i> Head-to-Head Benchmark &amp; Criteria Comparison</h1>
         <p class="text-muted">
@@ -28,12 +28,12 @@
 {% endif %}
 
 <div class="card">
-    <div class="flex-between" style="margin-bottom: var(--space-3);">
+    <div class="flex-between mb-3">
         <div>
-            <span class="text-muted" style="font-size: var(--text-xs); font-weight: 700; text-transform: uppercase;">Step 1: Select Category</span>
-            <div class="cat-tab-bar" id="dynamic_category_tabs" style="margin-top: var(--space-2); margin-bottom: 0;"></div>
+            <span class="text-muted text-muted uppercase-label">Step 1: Select Category</span>
+            <div class="cat-tab-bar" id="dynamic_category_tabs" class="cat-tab-bar mt-2 mb-0"></div>
         </div>
-        <div style="display: flex; gap: var(--space-2);">
+        <div class="flex-row-gap-2">
             <button type="button" class="btn btn-outline btn-sm" id="clear_slots_btn">
                 <i data-lucide="trash-2" class="icon-inline"></i> Clear Slots
             </button>
@@ -43,13 +43,13 @@
         </div>
     </div>
 
-    <span class="text-muted" style="font-size: var(--text-xs); font-weight: 700; text-transform: uppercase; display: block; margin-bottom: var(--space-2);">
+    <span class="text-muted text-muted uppercase-label block-label mb-2">
         Step 2: Click Any Slot Below to Filter by Brand &amp; Pick a Model (Up to 4 Models)
     </span>
 
     <div class="slots-grid" id="comparison_slots_container"></div>
 
-    <form id="compare_form" method="get" style="display: none;">
+    <form id="compare_form" method="get" class="sr-only-form">
         {% for key, val in weight_params.items %}
             <input type="hidden" name="{{ key }}" value="{{ val }}">
         {% endfor %}
@@ -76,12 +76,12 @@
         <div class="picker-modal-header">
             <div>
                 <h3 id="modal_title">Select a Model</h3>
-                <p class="text-muted" style="font-size: var(--text-xs);">Filter by brand, then click a model to assign it to the selected slot.</p>
+                <p class="text-muted text-muted text-xs">Filter by brand, then click a model to assign it to the selected slot.</p>
             </div>
             <button type="button" class="btn btn-outline btn-sm" id="close_modal_btn">&times; Close</button>
         </div>
         <div class="picker-modal-body">
-            <div style="margin-bottom: var(--space-3);">
+            <div class="mb-3">
                 <input type="text" id="modal_search_input" placeholder="Search model name or brand...">
             </div>
             <div class="brand-filter-bar" id="modal_brand_chips"></div>
@@ -93,12 +93,12 @@
 {% if compared_products %}
     <!-- Visual Comparison: Animated Radar Chart & Grouped Bar Chart Switcher -->
     <div class="chart-panel">
-        <div class="flex-between" style="margin-bottom: var(--space-3);">
+        <div class="flex-between mb-3">
             <div>
                 <h3><i data-lucide="radar" class="icon-inline"></i> Visual Criteria Comparison (Radar vs. Grouped Bar)</h3>
-                <p class="text-muted" style="font-size:var(--text-xs);">Compare strengths and trade-offs across all category criteria.</p>
+                <p class="text-muted text-muted text-xs">Compare strengths and trade-offs across all category criteria.</p>
             </div>
-            <div style="display:flex; gap:var(--space-2);">
+            <div class="flex-row-gap-2">
                 <button type="button" class="btn btn-outline btn-sm" onclick="switchCompareChart('radar')">
                     <i data-lucide="hexagon" class="icon-inline"></i> Radar Chart
                 </button>
@@ -168,7 +168,7 @@
                                     {% endfor %}
                                 </ul>
                             {% else %}
-                                <span class="text-muted" style="font-size:var(--text-xs);">Balanced all-rounder across metrics</span>
+                                <span class="text-muted text-muted text-xs">Balanced all-rounder across metrics</span>
                             {% endif %}
                         </td>
                     {% endfor %}
@@ -184,7 +184,7 @@
                     <tr>
                         <td>
                             <strong>{{ row.criteria.name }}</strong>
-                            <div class="text-muted" style="font-size:var(--text-xs);">Your Weight: {{ row.weight|floatformat:0 }}/10</div>
+                            <div class="text-muted text-muted text-xs">Your Weight: {{ row.weight|floatformat:0 }}/10</div>
                         </td>
                         {% for cell in row.cells %}
                             <td class="{% if cell.is_winner %}winner-cell{% endif %}">
@@ -208,7 +208,7 @@
                         <tr>
                             <td>
                                 <strong>{{ row.criteria.name }}</strong>
-                                <div class="text-muted" style="font-size:var(--text-xs);">Your Weight: {{ row.weight|floatformat:0 }}/10</div>
+                                <div class="text-muted text-muted text-xs">Your Weight: {{ row.weight|floatformat:0 }}/10</div>
                             </td>
                             {% for cell in row.cells %}
                                 <td class="{% if cell.is_winner %}winner-cell{% endif %}">

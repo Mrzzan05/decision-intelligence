@@ -13,7 +13,7 @@
             <p>
                 Tell us what matters to you, see which products fit those priorities, and understand the trade-offs. Demo catalog: specifications are approximate and review scores are sample data.
             </p>
-            <div class="spec-pills" style="margin-top: var(--space-4);">
+            <div class="spec-pills mt-4">
                 <span class="badge badge-primary"><i data-lucide="package" class="icon-inline"></i> {{ total_products }} Products</span>
                 <span class="badge badge-primary"><i data-lucide="message-square-quote" class="icon-inline"></i> {{ total_reviews }} Reviews</span>
                 <span class="badge badge-success"><i data-lucide="check-circle-2" class="icon-inline"></i> {{ total_decisions }} Logged Decisions</span>
@@ -25,7 +25,7 @@
     </div>
 </section>
 
-<div class="flex-between" style="margin-bottom: var(--space-4);">
+<div class="flex-between mb-4">
     <h2><i data-lucide="compass" class="icon-inline"></i> Select a Category to Launch the Decision Matrix</h2>
     <a href="{% url 'catalog:product_compare' %}?p=lenovo-loq-15irh8&amp;p=macbook-air-m3&amp;p=asus-rog-zephyrus-g14-2024" class="btn btn-outline btn-sm">
         <i data-lucide="radar" class="icon-inline"></i> Try Live 3-Laptop Radar Comparison →

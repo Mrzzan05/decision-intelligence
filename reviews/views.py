@@ -1,3 +1,4 @@
+from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.http import HttpRequest, HttpResponse
@@ -75,6 +76,7 @@ def create_or_update_review_view(
 
 
 @login_required
+@require_POST
 def delete_review_view(request: HttpRequest, product_slug: str) -> HttpResponse:
     product = get_object_or_404(Product, slug=product_slug)
     if request.method == "POST":

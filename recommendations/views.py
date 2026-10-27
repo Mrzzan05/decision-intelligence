@@ -1,3 +1,4 @@
+from django.views.decorators.http import require_GET
 import json
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, render
@@ -59,6 +60,7 @@ def category_recommendations_view(
     return render(request, "recommendations/category_recommendations.html", context)
 
 
+@require_GET
 def category_recommendations_api_view(
     request: HttpRequest,
     category_slug: str,

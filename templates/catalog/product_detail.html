@@ -100,7 +100,7 @@
             {% endfor %}
         </div>
         {% if rev.user_id == user.id %}
-            <div style="display:flex; gap:var(--space-2);">
+            <div class="flex-row-gap-2">
                 <a href="{% url 'reviews:write_review' product.slug %}" class="btn btn-outline btn-sm">Edit</a>
                 <form method="post" action="{% url 'reviews:delete_review' product.slug %}" class="inline-form" onsubmit="return confirm('Delete your review?');">
                     {% csrf_token %}

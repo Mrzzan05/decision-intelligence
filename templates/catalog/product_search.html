@@ -4,12 +4,12 @@
 
 {% block content %}
 <h1><i data-lucide="search" class="icon-inline"></i> Search &amp; Filter Catalog</h1>
-<p class="text-muted" style="margin-bottom: var(--space-4);">
+<p class="text-muted mb-4">
     Filter by keyword, category, price range, and minimum rating, or sort results below.
 </p>
 
 <form method="get" class="card">
-    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); gap:1rem; align-items:end;">
+    <div class="filter-grid">
         <div>
             <label for="id_q">Keyword</label>
             <input type="text" id="id_q" name="q" value="{{ query }}" placeholder="Brand, model, spec...">
@@ -52,24 +52,24 @@
 
 <div class="grid-3">
     {% for product in products %}
-        <div class="card" style="display:flex; flex-direction:column; justify-content:space-between;">
+        <div class="card card flex-col-between">
             <div>
                 <div class="flex-between">
                     <span class="badge badge-primary">{{ product.category.name }}</span>
                     <strong>&dollar;{{ product.price }}</strong>
                 </div>
-                <h3 style="margin: var(--space-2) 0;">
+                <h3 class="mt-2 mb-2">
                     <a href="{% url 'catalog:product_detail' product.slug %}">{{ product.brand }} {{ product.name }}</a>
                 </h3>
-                <p class="text-muted" style="font-size: var(--text-sm); margin-bottom: var(--space-3);">{{ product.description }}</p>
+                <p class="text-muted text-muted text-sm mb-3">{{ product.description }}</p>
             </div>
             <div>
                 {% if product.review_count > 0 %}
-                    <p style="font-size: var(--text-sm);">Avg Score: <strong>{{ product.average_score|floatformat:1 }} / 10</strong> ({{ product.review_count }} reviews)</p>
+                    <p class="text-muted text-sm">Avg Score: <strong>{{ product.average_score|floatformat:1 }} / 10</strong> ({{ product.review_count }} reviews)</p>
                 {% else %}
-                    <p class="text-muted" style="font-size: var(--text-sm);"><em>Insufficient data (0 reviews)</em></p>
+                    <p class="text-muted text-muted text-sm"><em>Insufficient data (0 reviews)</em></p>
                 {% endif %}
-                <div class="flex-between" style="margin-top: var(--space-3);">
+                <div class="flex-between mt-3">
                     <button
                         type="button"
                         class="btn btn-outline btn-sm"
@@ -89,11 +89,11 @@
 </div>
 
 {% if page_obj and page_obj.paginator.num_pages > 1 %}
-    <div class="card flex-between" style="margin-top: var(--space-4);">
-        <span class="text-muted" style="font-size: var(--text-sm);">
+    <div class="card flex-between mt-4">
+        <span class="text-muted text-muted text-sm">
             Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }} ({{ page_obj.paginator.count }} total models)
         </span>
-        <div style="display: flex; gap: var(--space-2);">
+        <div class="flex-row-gap-2">
             {% if page_obj.has_previous %}
                 <a class="btn btn-outline btn-sm" href="?q={{ query }}&amp;category={{ selected_category }}&amp;min_price={{ min_price }}&amp;max_price={{ max_price }}&amp;min_score={{ min_score }}&amp;sort={{ sort }}&amp;page={{ page_obj.previous_page_number }}">&larr; Previous</a>
             {% endif %}

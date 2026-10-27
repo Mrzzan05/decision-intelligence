@@ -1,3 +1,5 @@
+from django.conf import settings
+from django.core.management.base import CommandError
 from decimal import Decimal
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
@@ -20,9 +22,19 @@ class Command(BaseCommand):
             action="store_true",
             help="Optional: remove obsolete criteria before seeding.",
         )
+        parser.add_argument(
+            "--force",
+            action="store_true",
+            help="Allow running seed_data even when DEBUG=False.",
+        )
 
     @transaction.atomic
     def handle(self, *args, **options) -> None:
+        if not settings.DEBUG and not options.get("force"):
+            raise CommandError(
+                "Refusing to seed demo data and default admin credentials when DEBUG=False. "
+                "Pass --force if you intentionally want to seed this environment."
+            )
         admin_user, created = User.objects.get_or_create(
             email="admin@example.com",
             defaults={"username": "admin", "first_name": "Mehrsan", "is_staff": True, "is_superuser": True},

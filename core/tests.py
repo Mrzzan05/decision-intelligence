@@ -4,7 +4,8 @@ from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.core.management import call_command
-from django.test import TestCase
+from django.core.management.base import CommandError
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from catalog.models import Category, Criteria, Product
@@ -108,6 +109,7 @@ class CoreAndSecurityEdgeCaseTests(TestCase):
         items_desc = list(resp_desc.context["products"])
         self.assertEqual(items_desc[0].slug, "macbook-air")
 
+    @override_settings(DEBUG=True)
     def test_seed_data_does_not_delete_custom_admin_criteria_or_user_reviews(self) -> None:
         custom_crit = Criteria.objects.create(category=self.cat, name="Linux Compatibility")
         rev = Review.objects.create(
@@ -173,3 +175,39 @@ class CoreAndSecurityEdgeCaseTests(TestCase):
         self.assertEqual(payload["count"], 1)
         self.assertEqual(payload["results"][0]["slug"], "lenovo-loq-15")
         self.assertEqual(payload["results"][0]["match_percentage"], 90)
+
+    @override_settings(DEBUG=False)
+    def test_seed_data_refuses_to_run_when_debug_is_false_without_force(self) -> None:
+        with self.assertRaises(CommandError):
+            call_command("seed_data")
+
+    def test_logout_post_succeeds_and_get_returns_405(self) -> None:
+        self.client.force_login(self.user)
+        get_resp = self.client.get(reverse("accounts:logout"))
+        self.assertEqual(get_resp.status_code, 405)
+
+        post_resp = self.client.post(reverse("accounts:logout"))
+        self.assertRedirects(post_resp, reverse("home"))
+
+    def test_http_method_guards_return_405_on_wrong_verbs(self) -> None:
+        self.client.force_login(self.user)
+        api_url = reverse(
+            "recommendations:category_recommendations_api",
+            kwargs={"category_slug": self.cat.slug},
+        )
+        self.assertEqual(self.client.post(api_url).status_code, 405)
+
+        del_url = reverse("reviews:delete_review", kwargs={"product_slug": self.prod.slug})
+        self.assertEqual(self.client.get(del_url).status_code, 405)
+
+        save_url = reverse("catalog:toggle_saved_product", kwargs={"product_slug": self.prod.slug})
+        self.assertEqual(self.client.get(save_url).status_code, 405)
+
+        theme_url = reverse("accounts:update_theme")
+        self.assertEqual(self.client.get(theme_url).status_code, 405)
+
+    def test_skip_link_and_main_landmark_present_for_accessibility(self) -> None:
+        resp = self.client.get(reverse("home"))
+        html = resp.content.decode("utf-8")
+        self.assertIn('href="#main-content"', html)
+        self.assertIn('id="main-content"', html)

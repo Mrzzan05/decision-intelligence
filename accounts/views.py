@@ -1,3 +1,4 @@
+from django.views.decorators.http import require_POST
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView, LogoutView
@@ -64,6 +65,7 @@ def profile_view(request: HttpRequest) -> HttpResponse:
     return render(request, "accounts/profile.html", context)
 
 
+@require_POST
 def update_theme_preference_view(request: HttpRequest) -> JsonResponse:
     """
     Persist the user's selected theme_mode ('system', 'light', 'dark')
