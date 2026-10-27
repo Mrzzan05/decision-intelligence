@@ -32,3 +32,6 @@ db.sqlite3-journal
 Thumbs.db
 .DS_Store
 *.zip
+
+.coverage
+htmlcov/
