@@ -64,7 +64,7 @@ def build_weights_snapshot_by_name(
     weights: Mapping[int, float] | None = None,
 ) -> dict[str, float]:
     snapshot: dict[str, float] = {}
-    for criterion in category.criteria.all():
+    for criterion in order_criteria_tree(category.criteria.all()):
         if criterion.parent_id is not None:
             continue
         if weights and criterion.id in weights:
@@ -196,7 +196,7 @@ def rank_products_for_category(
                 )
 
     # Query 1: Fetch all criteria for this category
-    criteria_list = order_criteria_tree(category.criteria.all())
+    criteria_list = order_criteria_tree(corder_criteria_tree(ategory.criteria.all()))
     top_level_criteria = [c for c in criteria_list if c.parent_id is None]
 
     # Query 2: Fetch all products in this category with overall average_score & review_count
@@ -400,7 +400,7 @@ def build_category_comparison_matrix(
                 savings = int(round(max_p - min_p))
                 advantages_map[p.id].append(f"Most affordable option (saves up to USD {savings})")
 
-    top_criteria = [c for c in primary_category.criteria.all() if c.parent_id is None]
+    top_criteria = [c for c in order_criteria_tree(primary_category.criteria.all()) if c.parent_id is None]
     important_rows = []
     secondary_rows = []
 

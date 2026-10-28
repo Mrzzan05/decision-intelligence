@@ -1,3 +1,4 @@
+from catalog.models import order_criteria_tree
 from django.views.decorators.http import require_GET
 import json
 from django.http import HttpRequest, HttpResponse
@@ -20,7 +21,7 @@ def category_recommendations_view(
     weights = parse_criteria_weights_from_params(request.GET)
     ranked_products = rank_products_for_category(category=category, weights=weights)
 
-    top_criteria = [c for c in category.criteria.all() if c.parent_id is None]
+    top_criteria = [c for c in order_criteria_tree(category.criteria.all()) if c.parent_id is None]
     name_to_id = {c.name: c.id for c in top_criteria}
 
     for criterion in top_criteria:

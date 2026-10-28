@@ -53,6 +53,11 @@ class Category(TimeStampedModel):
         return self.name
 
 
+    @property
+    def ordered_criteria(self):
+        return order_criteria_tree(self.criteria.all())
+
+
 class Criteria(TimeStampedModel):
     """
     Evaluation dimension for a Category.

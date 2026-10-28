@@ -242,7 +242,14 @@ class CoreAndSecurityEdgeCaseTests(TestCase):
         resp = self.client.get(
             reverse("catalog:product_detail", kwargs={"product_slug": self.prod.slug})
         )
+        self.assertEqual(resp.status_code, 200)
         html = resp.content.decode("utf-8")
-        self.assertLess(html.index("Camera System"), html.index("Low-Light &amp; Zoom"))
-        self.assertLess(html.index("Low-Light &amp; Zoom"), html.index("Display Quality"))
-
+        scores_section = html[html.index("Scores by criterion") :]
+        self.assertLess(
+            scores_section.index("Camera System"),
+            scores_section.index("Low-Light &amp; Zoom"),
+        )
+        self.assertLess(
+            scores_section.index("Low-Light &amp; Zoom"),
+            scores_section.index("Display Quality"),
+        )
