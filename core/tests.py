@@ -145,21 +145,32 @@ class CoreAndSecurityEdgeCaseTests(TestCase):
         with self.assertRaises(ValidationError):
             bad_type_prod.full_clean()
 
-    def test_smart_summary_incorporates_written_pros_and_cons(self) -> None:
-        rev = Review.objects.create(
+    def test_smart_summary_takes_pro_from_best_review_and_con_from_lowest_review(self) -> None:
+        critic = User.objects.create_user(
+            username="critic", email="critic@example.com", password="StrongPassword123!"
+        )
+        happy = Review.objects.create(
             user=self.user,
             product=self.prod,
-            overall_rating=9,
+            overall_rating=10,
             pros="Whisper-quiet dual cooling fans",
-            cons="Heavy charger brick",
+            cons="Minor fingerprint magnet",
         )
-        ReviewScore.objects.create(review=rev, criteria=self.crit, score=8)
+        ReviewScore.objects.create(review=happy, criteria=self.crit, score=9)
+        unhappy = Review.objects.create(
+            user=critic,
+            product=self.prod,
+            overall_rating=4,
+            pros="Decent keyboard",
+            cons="Heavy 230W charger brick",
+        )
+        ReviewScore.objects.create(review=unhappy, criteria=self.crit, score=5)
 
-        ranked = rank_products_for_category(self.cat)
-        summary = ranked[0].smart_summary
+        summary = rank_products_for_category(self.cat)[0].smart_summary
         self.assertEqual(summary["written_pro"], "Whisper-quiet dual cooling fans")
-        self.assertEqual(summary["written_con"], "Heavy charger brick")
+        self.assertEqual(summary["written_con"], "Heavy 230W charger brick")
         self.assertTrue(any("Whisper-quiet dual cooling fans" in p for p in summary["pros"]))
+        self.assertTrue(any("Heavy 230W charger brick" in c for c in summary["cons"]))
 
     def test_recommendations_json_api_endpoint(self) -> None:
         rev = Review.objects.create(user=self.user, product=self.prod, overall_rating=9)
@@ -211,3 +222,27 @@ class CoreAndSecurityEdgeCaseTests(TestCase):
         html = resp.content.decode("utf-8")
         self.assertIn('href="#main-content"', html)
         self.assertIn('id="main-content"', html)
+
+    def test_subcriteria_appear_immediately_under_parent_not_alphabetically_misplaced(self) -> None:
+        cam = Criteria.objects.create(category=self.cat, name="Camera System")
+        disp = Criteria.objects.create(category=self.cat, name="Display Quality")
+        lowlight = Criteria.objects.create(
+            category=self.cat, name="Low-Light & Zoom", parent=cam
+        )
+        rev = Review.objects.create(user=self.user, product=self.prod, overall_rating=9)
+        ReviewScore.objects.create(review=rev, criteria=cam, score=9)
+        ReviewScore.objects.create(review=rev, criteria=disp, score=10)
+        ReviewScore.objects.create(review=rev, criteria=lowlight, score=8)
+
+        ranked = rank_products_for_category(self.cat)
+        names = [item["name"] for item in ranked[0].criteria_breakdown]
+        self.assertEqual(names.index("Low-Light & Zoom"), names.index("Camera System") + 1)
+        self.assertLess(names.index("Low-Light & Zoom"), names.index("Display Quality"))
+
+        resp = self.client.get(
+            reverse("catalog:product_detail", kwargs={"product_slug": self.prod.slug})
+        )
+        html = resp.content.decode("utf-8")
+        self.assertLess(html.index("Camera System"), html.index("Low-Light &amp; Zoom"))
+        self.assertLess(html.index("Low-Light &amp; Zoom"), html.index("Display Quality"))
+

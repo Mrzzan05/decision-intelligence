@@ -49,5 +49,7 @@ jobs:
           uv run python manage.py check
           uv run python manage.py makemigrations --check
 
-      - name: Execute automated test suite on PostgreSQL
-        run: uv run python manage.py test --verbosity 2
+      - name: Execute automated test suite with coverage on PostgreSQL
+        run: |
+          uv run coverage run manage.py test --verbosity 2
+          uv run coverage report

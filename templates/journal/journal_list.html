@@ -3,7 +3,7 @@
 {% block title %}My Decision Journal{% endblock %}
 
 {% block content %}
-<div class="flex-between" style="margin-bottom:1.5rem;">
+<div class="flex-between u-mb-1-5rem">
     <div>
         <h1>My Decision Journal (Expectation vs. Reality)</h1>
         <p class="text-muted">Track pre-purchase expectations against real post-purchase experience.</p>
@@ -16,14 +16,14 @@
         <div class="flex-between">
             <div>
                 <span class="badge badge-primary">{{ entry.category.name }}</span>
-                <h3 style="display:inline; margin-left:0.5rem;">{{ entry.chosen_product }}</h3>
+                <h3 class="u-d-inline u-ml-0-5rem">{{ entry.chosen_product }}</h3>
             </div>
             <span class="text-muted">{{ entry.created_at|date:"M d, Y" }}</span>
         </div>
 
-        <p style="margin-top:0.75rem;"><strong>Rationale:</strong> {{ entry.rationale }}</p>
+        <p class="u-mt-0-75rem"><strong>Rationale:</strong> {{ entry.rationale }}</p>
 
-        <div class="grid-2" style="margin-top:0.75rem;">
+        <div class="grid-2 u-mt-0-75rem">
             <div class="summary-box">
                 <strong>🎯 Pre-Purchase Expectation (Expected: {{ entry.expected_rating|default:"-" }}/10)</strong>
                 <p>{{ entry.expected_outcome|default:"Not recorded yet." }}</p>
@@ -42,7 +42,7 @@
             </div>
         {% endif %}
 
-        <div class="flex-between" style="margin-top:0.75rem;">
+        <div class="flex-between u-mt-0-75rem">
             <div>
                 {% if entry.expectation_gap is not None %}
                     <span class="badge {% if entry.expectation_gap >= 0 %}badge-success{% else %}badge-warning{% endif %}">

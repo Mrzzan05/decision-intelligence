@@ -5,8 +5,8 @@
 {% block content %}
 <section class="hero">
     <div class="flex-between">
-        <div style="max-width: 760px;">
-            <span class="badge badge-primary" style="margin-bottom: var(--space-2);">
+        <div class="u-maxw-760px">
+            <span class="badge badge-primary u-mb-space-2">
                 <i data-lucide="cpu" class="icon-inline"></i> Multi-Criteria Decision Support System (MCDA)
             </span>
             <h1>Benchmark-Driven Decision Intelligence</h1>
@@ -20,7 +20,7 @@
             </div>
         </div>
         <div>
-            <i data-lucide="award" class="icon-inline" style="width:28px;height:28px;color:var(--primary);"></i>
+            <i data-lucide="award" class="icon-inline u-w-28px u-h-28px u-c-primary"></i>
         </div>
     </div>
 </section>
@@ -34,7 +34,7 @@
 
 <div class="grid-2">
     {% for category in categories %}
-        <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
+        <div class="card u-d-flex u-flex-direction-column u-justify-content-space-between">
             <div>
                 <div class="flex-between">
                     <span class="badge badge-primary">
@@ -42,12 +42,12 @@
                     </span>
                     <span class="spec-pill">{{ category.product_count }} Models</span>
                 </div>
-                <h3 style="font-size: var(--text-xl); margin: var(--space-3) 0 var(--space-2) 0;">{{ category.name }}</h3>
-                <p class="text-muted" style="font-size: var(--text-sm); margin-bottom: var(--space-4);">
+                <h3 class="u-fs-text-xl u-m-space-3-0-space-2-0">{{ category.name }}</h3>
+                <p class="text-muted u-fs-text-sm u-mb-space-4">
                     Evaluate {{ category.product_count }} real-world models across {{ category.criteria_count }} decision criteria weighted by your own priorities.
                 </p>
             </div>
-            <div style="display:flex; gap:var(--space-3);">
+            <div class="u-d-flex u-gap-space-3">
                 <a href="{% url 'recommendations:category_recommendations' category.slug %}" class="btn btn-block">
                     <i data-lucide="sliders-horizontal" class="icon-inline"></i> Launch {{ category.name }} Matrix →
                 </a>

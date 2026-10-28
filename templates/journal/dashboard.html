@@ -6,11 +6,11 @@
 <section class="dashboard-hero-card">
     <div class="flex-between">
         <div>
-            <span class="badge badge-primary badge badge-primary mb-1">
+            <span class="badge badge-primary mb-1">
                 <i data-lucide="layout-dashboard" class="icon-inline"></i> Your dashboard
             </span>
             <h1 class="text-2xl mb-1">Decision overview</h1>
-            <p class="text-muted text-muted text-sm">
+            <p class="text-muted text-sm">
                 Your shortlist, your reviews, and how well your expectations matched reality.
             </p>
             {% if user.preference and user.preference.preferred_category %}
@@ -57,7 +57,7 @@
                 <span>Avg expected</span>
                 <i data-lucide="sparkles" class="icon-inline icon-warning"></i>
             </div>
-            <div class="kpi-value">{{ avg_expected }}<span class="text-muted text-muted text-base font-normal">/10</span></div>
+            <div class="kpi-value">{{ avg_expected }}<span class="text-muted text-base font-normal">/10</span></div>
             <div class="score-bar-track">
                 <div class="score-bar-fill" style="width: {% widthratio avg_expected 10 100 %}%;"></div>
             </div>
@@ -71,7 +71,7 @@
                 <span>Avg actual</span>
                 <i data-lucide="award" class="icon-inline icon-success"></i>
             </div>
-            <div class="kpi-value icon-success">{{ avg_actual }}<span class="text-muted text-muted text-base font-normal">/10</span></div>
+            <div class="kpi-value icon-success">{{ avg_actual }}<span class="text-muted text-base font-normal">/10</span></div>
             <div class="score-bar-track">
                 <div class="score-bar-fill" style="width: {% widthratio avg_actual 10 100 %}%;"></div>
             </div>
@@ -81,31 +81,31 @@
 </section>
 
 <div class="grid-2 mb-5">
-    <div class="card card mb-0">
-        <div class="flex-between flex-between section-header-row">
+    <div class="card mb-0">
+        <div class="flex-between section-header-row">
             <h3><i data-lucide="bookmark" class="icon-inline"></i> Saved products ({{ saved_products|length }})</h3>
             <a href="{% url 'catalog:product_search' %}" class="btn btn-outline btn-sm">Browse catalog</a>
         </div>
         {% for item in saved_products %}
-            <div class="flex-between flex-between list-row-divider">
+            <div class="flex-between list-row-divider">
                 <div>
                     <a href="{% url 'catalog:product_detail' item.product.slug %}"><strong>{{ item.product }}</strong></a>
-                    <span class="text-muted text-muted text-xs">&dollar;{{ item.product.price }}</span>
+                    <span class="text-muted text-xs">&dollar;{{ item.product.price }}</span>
                 </div>
                 <a href="{% url 'record_decision' item.product.slug %}" class="btn btn-outline btn-sm">Decide</a>
             </div>
         {% empty %}
-            <p class="text-muted text-muted text-sm">Nothing saved yet. Use <em>Save</em> on a product page to build a shortlist.</p>
+            <p class="text-muted text-sm">Nothing saved yet. Use <em>Save</em> on a product page to build a shortlist.</p>
         {% endfor %}
     </div>
 
-    <div class="card card mb-0">
-        <div class="flex-between flex-between section-header-row">
+    <div class="card mb-0">
+        <div class="flex-between section-header-row">
             <h3><i data-lucide="message-square" class="icon-inline"></i> My reviews ({{ user_reviews|length }})</h3>
             <a href="{% url 'catalog:product_search' %}" class="btn btn-outline btn-sm">Rate a product</a>
         </div>
         {% for rev in user_reviews %}
-            <div class="flex-between flex-between list-row-divider">
+            <div class="flex-between list-row-divider">
                 <div>
                     <a href="{% url 'catalog:product_detail' rev.product.slug %}"><strong>{{ rev.product }}</strong></a>
                     <span class="badge badge-primary">{{ rev.overall_rating }}/10</span>
@@ -113,7 +113,7 @@
                 <a href="{% url 'reviews:write_review' rev.product.slug %}" class="btn btn-outline btn-sm">Edit</a>
             </div>
         {% empty %}
-            <p class="text-muted text-muted text-sm">You haven't reviewed anything yet.</p>
+            <p class="text-muted text-sm">You haven't reviewed anything yet.</p>
         {% endfor %}
     </div>
 </div>
@@ -124,13 +124,13 @@
         <a href="{% url 'journal_list' %}" class="btn btn-outline btn-sm">View full journal</a>
     </div>
     {% for entry in decisions %}
-        <div class="flex-between flex-between list-row-divider">
+        <div class="flex-between list-row-divider">
             <div>
                 <span class="badge badge-primary">{{ entry.category.name }}</span>
                 <a href="{% url 'catalog:product_detail' entry.chosen_product.slug %}" class="ml-2">
                     <strong>{{ entry.chosen_product }}</strong>
                 </a>
-                <span class="text-muted text-muted text-xs ml-2">{{ entry.created_at|date:"M d, Y" }}</span>
+                <span class="text-muted text-xs ml-2">{{ entry.created_at|date:"M d, Y" }}</span>
             </div>
             <div class="flex-row-center-gap-2">
                 <span class="spec-pill">Expected: {{ entry.expected_rating|default:"-" }}/10</span>
@@ -139,47 +139,47 @@
             </div>
         </div>
     {% empty %}
-        <p class="text-muted text-muted text-sm">No decisions recorded yet. Launch a category matrix to record your first choice.</p>
+        <p class="text-muted text-sm">No decisions recorded yet. Launch a category matrix to record your first choice.</p>
     {% endfor %}
 </div>
 
-<h2 style="margin: var(--space-5) 0 var(--space-3);">Platform analytics</h2>
+<h2 class="u-m-space-5-0-space-3">Platform analytics</h2>
 <div class="grid-2">
     <section class="card">
-        <h3 style="font-size:var(--text-base);">Most reviewed products</h3>
+        <h3 class="u-fs-text-base">Most reviewed products</h3>
         {% for p in analytics.most_reviewed %}
             <div class="bar-row">
                 <a href="{% url 'catalog:product_detail' p.slug %}">{{ p.brand }} {{ p.name }}</a>
-                <div class="score-bar-track" style="margin:0;"><div class="score-bar-fill" style="width: {{ p.popularity_pct }}%;"></div></div>
+                <div class="score-bar-track u-m-0"><div class="score-bar-fill" style="width: {{ p.popularity_pct }}%;"></div></div>
                 <strong>{{ p.review_count }}</strong>
             </div>
         {% empty %}<p class="text-muted">No reviews yet.</p>{% endfor %}
     </section>
 
     <section class="card">
-        <h3 style="font-size:var(--text-base);">Highest average rating</h3>
+        <h3 class="u-fs-text-base">Highest average rating</h3>
         {% for p in analytics.top_rated %}
             <div class="bar-row">
                 <a href="{% url 'catalog:product_detail' p.slug %}">{{ p.brand }} {{ p.name }}</a>
-                <div class="score-bar-track" style="margin:0;"><div class="score-bar-fill" style="width: {% widthratio p.average_score 10 100 %}%;"></div></div>
+                <div class="score-bar-track u-m-0"><div class="score-bar-fill" style="width: {% widthratio p.average_score 10 100 %}%;"></div></div>
                 <strong>{{ p.average_score|floatformat:1 }}</strong>
             </div>
         {% empty %}<p class="text-muted">No reviews yet.</p>{% endfor %}
     </section>
 
     <section class="card">
-        <h3 style="font-size:var(--text-base);">Reviews per category</h3>
+        <h3 class="u-fs-text-base">Reviews per category</h3>
         {% for c in analytics.by_category %}
-            <div class="flex-between" style="padding:var(--space-1) 0;"><span>{{ c.name }}</span><strong>{{ c.review_total }}</strong></div>
+            <div class="flex-between u-p-space-1-0"><span>{{ c.name }}</span><strong>{{ c.review_total }}</strong></div>
         {% empty %}<p class="text-muted">No data yet.</p>{% endfor %}
     </section>
 
     <section class="card">
-        <h3 style="font-size:var(--text-base);">Review activity by month</h3>
+        <h3 class="u-fs-text-base">Review activity by month</h3>
         {% for m in analytics.monthly %}
             <div class="bar-row">
                 <span>{{ m.month|date:"M Y" }}</span>
-                <div class="score-bar-track" style="margin:0;"><div class="score-bar-fill" style="width: {{ m.pct }}%;"></div></div>
+                <div class="score-bar-track u-m-0"><div class="score-bar-fill" style="width: {{ m.pct }}%;"></div></div>
                 <strong>{{ m.total }}</strong>
             </div>
         {% empty %}<p class="text-muted">No data yet.</p>{% endfor %}

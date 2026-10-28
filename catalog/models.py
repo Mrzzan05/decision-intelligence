@@ -216,3 +216,36 @@ class SavedProduct(TimeStampedModel):
 
     def __str__(self) -> str:
         return f"{self.user.username} saved {self.product}"
+
+
+def order_criteria_tree(criteria_iterable):
+    """Order criteria hierarchically: each top-level parent followed immediately by its sub-criteria."""
+    items = list(criteria_iterable)
+    by_id = {c.id: c for c in items}
+    children_map: dict[int | None, list] = {}
+    for c in items:
+        parent_key = c.parent_id if (c.parent_id and c.parent_id in by_id) else None
+        children_map.setdefault(parent_key, []).append(c)
+
+    for group in children_map.values():
+        group.sort(key=lambda x: x.name.lower())
+
+    ordered = []
+    visited: set[int] = set()
+
+    def _visit(node) -> None:
+        if node.id in visited:
+            return
+        visited.add(node.id)
+        ordered.append(node)
+        for child in children_map.get(node.id, []):
+            _visit(child)
+
+    for root in children_map.get(None, []):
+        _visit(root)
+
+    for leftover in items:
+        if leftover.id not in visited:
+            ordered.append(leftover)
+
+    return ordered

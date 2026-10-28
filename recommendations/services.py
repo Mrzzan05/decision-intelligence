@@ -6,7 +6,7 @@ from typing import Any
 from django.db.models import Avg, Count, OuterRef, Q, StdDev, Subquery
 from django.db.models.functions import TruncMonth
 
-from catalog.models import Category, Criteria, Product
+from catalog.models import Category, Criteria, Product, order_criteria_tree
 from reviews.models import Review, ReviewScore
 
 DEFAULT_CRITERIA_WEIGHT: float = 5.0
@@ -196,13 +196,29 @@ def rank_products_for_category(
                 )
 
     # Query 1: Fetch all criteria for this category
-    criteria_list = list(category.criteria.all())
+    criteria_list = order_criteria_tree(category.criteria.all())
     top_level_criteria = [c for c in criteria_list if c.parent_id is None]
 
     # Query 2: Fetch all products in this category with overall average_score & review_count
     products = list(
         Product.objects.filter(category=category)
         .with_average_scores()
+        .annotate(
+            # Written highlight: pros from the HIGHEST-rated review, cons from the LOWEST-rated one
+            # (taking cons from the happiest reviewer would hide the real trade-offs).
+            sample_pro=Subquery(
+                Review.objects.filter(product_id=OuterRef("pk"))
+                .exclude(pros="")
+                .order_by("-overall_rating", "-created_at")
+                .values("pros")[:1]
+            ),
+            sample_con=Subquery(
+                Review.objects.filter(product_id=OuterRef("pk"))
+                .exclude(cons="")
+                .order_by("overall_rating", "-created_at")
+                .values("cons")[:1]
+            ),
+        )
         .select_related("category")
     )
 
@@ -218,24 +234,11 @@ def rank_products_for_category(
             criteria_stddev=StdDev("score", sample=False),
             total_votes=Count("id"),
             satisfied_votes=Count("id", filter=Q(score__gte=7)),
-            sample_pro=Subquery(
-                Review.objects.filter(product_id=OuterRef("review__product_id"))
-                .exclude(pros="")
-                .order_by("-overall_rating", "-created_at")
-                .values("pros")[:1]
-            ),
-            sample_con=Subquery(
-                Review.objects.filter(product_id=OuterRef("review__product_id"))
-                .exclude(cons="")
-                .order_by("-overall_rating", "-created_at")
-                .values("cons")[:1]
-            ),
         )
     )
 
     product_stats_map: dict[int, dict[int, dict[str, float | int]]] = defaultdict(dict)
     product_criteria_map: dict[int, dict[int, float]] = defaultdict(dict)
-    product_written_map: dict[int, dict[str, str]] = defaultdict(lambda: {'pro': '', 'con': ''})
     criteria_totals_across_category: dict[int, list[float]] = defaultdict(list)
 
     for row in aggregated_scores:
@@ -247,10 +250,6 @@ def rank_products_for_category(
         sat_v = int(row["satisfied_votes"] or 0)
 
         product_criteria_map[product_id][crit_id] = avg_val
-        if row.get("sample_pro") and not product_written_map[product_id]["pro"]:
-            product_written_map[product_id]["pro"] = str(row["sample_pro"]).strip()
-        if row.get("sample_con") and not product_written_map[product_id]["con"]:
-            product_written_map[product_id]["con"] = str(row["sample_con"]).strip()
         product_stats_map[product_id][crit_id] = {
             "avg": avg_val,
             "stddev": stddev_val,
@@ -336,7 +335,10 @@ def rank_products_for_category(
             review_count=rev_count,
         )
 
-        written_notes = product_written_map.get(product.id, {"pro": "", "con": ""})
+        written_notes = {
+            "pro": str(getattr(product, "sample_pro", "") or "").strip(),
+            "con": str(getattr(product, "sample_con", "") or "").strip(),
+        }
         product.smart_summary["written_pro"] = written_notes["pro"]
         product.smart_summary["written_con"] = written_notes["con"]
         if written_notes["pro"] and len(product.smart_summary["pros"]) < 3:

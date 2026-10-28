@@ -7,14 +7,14 @@
     <i data-lucide="arrow-left" class="icon-inline"></i> Back to {{ product.category.name }} matrix
 </a>
 
-<div class="page-head" style="margin-top:var(--space-3);">
+<div class="page-head u-mt-space-3">
     <div>
         <span class="eyebrow">{{ product.category.name }}</span>
         <h1>{{ product.brand }} {{ product.name }}</h1>
         {% if product.description %}<p>{{ product.description }}</p>{% endif %}
     </div>
-    <div style="text-align:right;">
-        <div class="stat-value" style="font-size:var(--text-2xl); font-weight:800;">&dollar;{{ product.price }}</div>
+    <div class="u-ta-right">
+        <div class="stat-value u-fs-text-2xl u-fw-800">&dollar;{{ product.price }}</div>
         {% if product.has_sufficient_data %}
             <span class="badge badge-success">{{ product.match_percentage }}% match &middot; {{ product.weighted_score }}/10</span>
         {% else %}
@@ -23,7 +23,7 @@
     </div>
 </div>
 
-<div style="display:flex; gap:var(--space-2); flex-wrap:wrap; margin-bottom:var(--space-5);">
+<div class="u-d-flex u-gap-space-2 u-flex-wrap-wrap u-mb-space-5">
     <button type="button" class="btn btn-outline" aria-pressed="false" data-compare-slug="{{ product.slug }}" data-compare-name="{{ product.brand }} {{ product.name }}" data-compare-category="{{ product.category.slug }}">
         <i data-lucide="scale" class="icon-inline"></i> <span class="compare-label">Compare</span>
     </button>
@@ -42,21 +42,21 @@
 
 <div class="grid-2">
     <section class="card">
-        <h2 style="font-size:var(--text-lg);">What reviewers say</h2>
+        <h2 class="u-fs-text-lg">What reviewers say</h2>
         {% include "partials/smart_summary.html" with summary=smart_summary %}
         {% if product.dealbreakers %}
-            <div class="alert alert-warning" style="margin-top:var(--space-3);">
+            <div class="alert alert-warning u-mt-space-3">
                 Scores below 6 on criteria you rated highly: {{ product.dealbreakers|join:", " }}.
             </div>
         {% endif %}
     </section>
 
     <section class="card">
-        <h2 style="font-size:var(--text-lg); margin-bottom:var(--space-3);">Scores by criterion</h2>
+        <h2 class="u-fs-text-lg u-mb-space-3">Scores by criterion</h2>
         {% for item in criteria_breakdown %}
             <div class="crit-row {% if item.is_subcriterion %}is-sub{% endif %}">
                 <div class="crit-head">
-                    <span>{{ item.name }}</span>
+                    <span>{% if item.is_subcriterion %}<span class="subcriterion-prefix">&#8627;</span> {% endif %}{{ item.name }}</span>
                     <strong>{% if item.score is None %}&mdash;{% else %}{{ item.score }}/10{% endif %}</strong>
                 </div>
                 <div class="score-bar-track" role="img" aria-label="{{ item.name }}: {% if item.score is None %}no data{% else %}{{ item.score }} out of 10{% endif %}">
@@ -70,10 +70,10 @@
 </div>
 
 <section class="card">
-    <h2 style="font-size:var(--text-lg);">Specifications</h2>
+    <h2 class="u-fs-text-lg">Specifications</h2>
     {% regroup normalized_specs by group as spec_groups %}
     {% for group in spec_groups %}
-        <h3 class="eyebrow" style="margin-top:var(--space-4);">{{ group.grouper }}</h3>
+        <h3 class="eyebrow u-mt-space-4">{{ group.grouper }}</h3>
         <div class="spec-pills">
             {% for spec in group.list %}
                 <span class="spec-pill"><strong>{{ spec.label }}:</strong> {{ spec.display_value }}</span>
@@ -84,15 +84,15 @@
     {% endfor %}
 </section>
 
-<h2 style="margin: var(--space-5) 0 var(--space-3);">Community reviews ({{ reviews|length }})</h2>
+<h2 class="u-m-space-5-0-space-3">Community reviews ({{ reviews|length }})</h2>
 {% for rev in reviews %}
     <article class="card review-card">
         <div class="review-meta">
             <strong>{{ rev.user.display_name }}</strong>
             <span class="badge badge-primary">Overall {{ rev.overall_rating }}/10</span>
         </div>
-        {% if rev.pros %}<p><span class="rt-sign" style="background:var(--success-soft);color:var(--success-text);display:inline-flex;width:1.3rem;height:1.3rem;">+</span> {{ rev.pros }}</p>{% endif %}
-        {% if rev.cons %}<p><span class="rt-sign" style="background:var(--danger-soft);color:var(--danger-text);display:inline-flex;width:1.3rem;height:1.3rem;">&minus;</span> {{ rev.cons }}</p>{% endif %}
+        {% if rev.pros %}<p><span class="rt-sign u-background-success-soft u-c-success-text u-d-inline-flex u-w-1-3rem u-h-1-3rem">+</span> {{ rev.pros }}</p>{% endif %}
+        {% if rev.cons %}<p><span class="rt-sign u-background-danger-soft u-c-danger-text u-d-inline-flex u-w-1-3rem u-h-1-3rem">&minus;</span> {{ rev.cons }}</p>{% endif %}
         {% if rev.comment %}<p>{{ rev.comment }}</p>{% endif %}
         <div class="spec-pills">
             {% for sc in rev.scores.all %}

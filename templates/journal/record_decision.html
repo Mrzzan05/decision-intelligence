@@ -3,7 +3,7 @@
 {% block title %}Record Decision — {{ product }}{% endblock %}
 
 {% block content %}
-<div class="card" style="max-width:700px; margin:0 auto;">
+<div class="card u-maxw-700px u-m-0-auto">
     <span class="badge badge-primary">{{ product.category.name }}</span>
     <h1>{% if is_updating %}Update Post-Purchase Reality{% else %}Log Decision{% endif %}: {{ product }}</h1>
 
@@ -32,13 +32,13 @@
         {% endfor %}
 
         {% for field in form %}
-            <div style="margin-bottom:var(--space-4);">
+            <div class="u-mb-space-4">
                 <label for="{{ field.id_for_label }}"><strong>{{ field.label }}</strong></label>
                 {{ field }}
             </div>
         {% endfor %}
 
-        <div style="display:flex; gap:var(--space-3);">
+        <div class="u-d-flex u-gap-space-3">
             <button type="submit" class="btn">💾 Save Decision Entry</button>
             <a href="{% url 'journal_list' %}" class="btn btn-outline">Cancel</a>
         </div>

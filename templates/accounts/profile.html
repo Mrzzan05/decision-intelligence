@@ -3,34 +3,34 @@
 {% block title %}My Profile & Preferences{% endblock %}
 
 {% block content %}
-<div class="card" style="max-width: 680px; margin: 0 auto;">
-    <h1 style="margin-bottom: 0.5rem;">Account & Decision Preferences</h1>
-    <p style="color: var(--muted); margin-bottom: 1.5rem;">Logged in as <strong>{{ user.email }}</strong></p>
+<div class="card u-maxw-680px u-m-0-auto">
+    <h1 class="u-mb-0-5rem">Account & Decision Preferences</h1>
+    <p class="u-c-muted u-mb-1-5rem">Logged in as <strong>{{ user.email }}</strong></p>
 
     <form method="post">
         {% csrf_token %}
-        <h3 style="margin-bottom: 0.75rem;">Personal Information</h3>
+        <h3 class="u-mb-0-75rem">Personal Information</h3>
         {% for field in user_form %}
-            <div style="margin-bottom: 1rem;">
-                <label for="{{ field.id_for_label }}" style="font-weight: 600; display: block; margin-bottom: 0.3rem;">{{ field.label }}</label>
+            <div class="u-mb-1rem">
+                <label class="u-fw-600 u-d-block u-mb-0-3rem" for="{{ field.id_for_label }}">{{ field.label }}</label>
                 {{ field }}
             </div>
         {% endfor %}
 
-        <hr style="margin: 1.5rem 0; border: none; border-top: 1px solid var(--border);">
+        <hr class="u-m-1-5rem-0 u-border-none u-border-top-1px-solid-border">
 
-        <h3 style="margin-bottom: 0.75rem;">Decision Intelligence Preferences</h3>
+        <h3 class="u-mb-0-75rem">Decision Intelligence Preferences</h3>
         {% for field in pref_form %}
-            <div style="margin-bottom: 1rem;">
-                <label for="{{ field.id_for_label }}" style="font-weight: 600; display: block; margin-bottom: 0.3rem;">{{ field.label }}</label>
+            <div class="u-mb-1rem">
+                <label class="u-fw-600 u-d-block u-mb-0-3rem" for="{{ field.id_for_label }}">{{ field.label }}</label>
                 {{ field }}
                 {% if field.help_text %}
-                    <small style="color: var(--muted); display: block;">{{ field.help_text }}</small>
+                    <small class="u-c-muted u-d-block">{{ field.help_text }}</small>
                 {% endif %}
             </div>
         {% endfor %}
 
-        <button type="submit" class="btn" style="margin-top: 0.5rem;">Save Preferences</button>
+        <button type="submit" class="btn u-mt-0-5rem">Save Preferences</button>
     </form>
 </div>
 {% endblock %}

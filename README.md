@@ -1,5 +1,7 @@
 # Decision Intelligence Platform
 
+![CI](https://github.com/Mrzzan05/decision-intelligence/actions/workflows/ci.yml/badge.svg)
+
 A Multi-Criteria Decision Analysis (MCDA) web application built with **Django 6.1** and **PostgreSQL**. Users assign priority weights (`0..10`) or select persona presets to rank products, inspect RTINGS-style consensus summaries with top-rated reviewer highlights, compare models side-by-side (Apple/Baymard style) with interactive Chart.js Radar & Grouped Bar charts, and track pre-purchase expectations against post-purchase reality in a personal Decision Journal.
 
 ---
@@ -35,7 +37,7 @@ uv run python manage.py migrate
 # Note: seed_data only runs when DEBUG=True (or with --force) and is strictly for local demo use.
 uv run python manage.py seed_data
 
-# 5. Run the 60 automated tests (with optional coverage)
+# 5. Run the 61 automated tests (with optional coverage)
 uv run python manage.py test
 
 # 6. Launch development server
@@ -206,7 +208,7 @@ erDiagram
 
 ---
 
-## 7. Automated Test Suite & Coverage Report (60 Tests, 94% Coverage)
+## 7. Automated Test Suite & Coverage Report (61 Tests, 94% Coverage)
 
 Run via `uv run coverage run manage.py test && uv run coverage report`:
 
@@ -235,3 +237,22 @@ reviews/views.py                           48      1    98%
 -----------------------------------------------------------
 TOTAL                                     986     56    94%
 ```
+
+---
+
+## 8. Docker
+
+```bash
+docker build -t decision-intelligence .
+docker run --rm -p 8000:8000 \
+  -e SECRET_KEY="change-me" \
+  -e DATABASE_URL="postgres://USER:PASSWORD@HOST:5432/decision_intelligence" \
+  -e ALLOWED_HOSTS="localhost,127.0.0.1" \
+  -e CSRF_TRUSTED_ORIGINS="http://localhost:8000" \
+  -e SECURE_SSL_REDIRECT="False" \
+  decision-intelligence
+```
+
+The image runs as a non-root user and serves static files through WhiteNoise. Run
+`python manage.py migrate` against the database once before first use
+(`docker run ... decision-intelligence python manage.py migrate`).

@@ -3,27 +3,27 @@
 {% block title %}Create Account — Decision Intelligence{% endblock %}
 
 {% block content %}
-<div class="card" style="max-width: 520px; margin: 2rem auto;">
-    <h1 style="margin-bottom: 0.5rem;">Create Your Account</h1>
-    <p style="color: var(--muted); margin-bottom: 1.5rem;">Track your product evaluations, custom criteria weights, and decision outcomes.</p>
+<div class="card u-maxw-520px u-m-2rem-auto">
+    <h1 class="u-mb-0-5rem">Create Your Account</h1>
+    <p class="u-c-muted u-mb-1-5rem">Track your product evaluations, custom criteria weights, and decision outcomes.</p>
 
     <form method="post" novalidate>
         {% csrf_token %}
         {% for field in form %}
-            <div style="margin-bottom: 1rem;">
-                <label for="{{ field.id_for_label }}" style="font-weight: 600; display: block; margin-bottom: 0.35rem;">
+            <div class="u-mb-1rem">
+                <label class="u-fw-600 u-d-block u-mb-0-35rem" for="{{ field.id_for_label }}">
                     {{ field.label }}
                 </label>
                 {{ field }}
                 {% for error in field.errors %}
-                    <div style="color: #dc2626; font-size: 0.85rem; margin-top: 0.25rem;">{{ error }}</div>
+                    <div class="u-c-dc2626 u-fs-0-85rem u-mt-0-25rem">{{ error }}</div>
                 {% endfor %}
             </div>
         {% endfor %}
-        <button type="submit" class="btn btn-block" style="margin-top: 0.5rem;">Create Account</button>
+        <button type="submit" class="btn btn-block u-mt-0-5rem">Create Account</button>
     </form>
 
-    <p style="margin-top: 1.25rem; text-align: center; font-size: 0.9rem; color: var(--muted);">
+    <p class="u-mt-1-25rem u-ta-center u-fs-0-9rem u-c-muted">
         Already registered? <a href="{% url 'accounts:login' %}">Sign In</a>
     </p>
 </div>

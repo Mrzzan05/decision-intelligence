@@ -6,6 +6,6 @@
     {% for item in summary.cons %}<li class="rt-item rt-con"><span class="rt-sign" title="Weakness" aria-label="Weakness">&minus;</span><span>{{ item }}</span></li>{% endfor %}
 </ul>
 {% else %}
-<p class="text-muted" style="font-size:var(--text-sm);">{{ summary.verdict|default:"Not enough review data yet." }}</p>
+<p class="text-muted u-fs-text-sm">{{ summary.verdict|default:"Not enough review data yet." }}</p>
 {% endif %}
 <p class="rt-basis">{{ summary.basis_text|default:"Insufficient data" }}{% if summary.review_count and summary.review_count < 5 %} &middot; low confidence (fewer than 5 reviews){% endif %}</p>
