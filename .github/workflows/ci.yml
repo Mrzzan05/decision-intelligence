@@ -53,3 +53,26 @@ jobs:
         run: |
           uv run coverage run manage.py test --verbosity 2
           uv run coverage report
+  docker:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t decision-intelligence .
+
+      - name: Smoke-test the container
+        run: |
+          docker run -d --name di -p 8000:8000 \
+            -e SECRET_KEY=ci-smoke-test-key \
+            -e DATABASE_URL=sqlite:////tmp/ci.sqlite3 \
+            -e ALLOWED_HOSTS=localhost,127.0.0.1 \
+            -e SECURE_SSL_REDIRECT=False \
+            decision-intelligence
+          docker exec di python manage.py migrate --noinput
+          curl --fail --silent --show-error --retry 10 --retry-connrefused --retry-delay 2 \
+            http://localhost:8000/accounts/login/ -o /dev/null
+          curl --fail --silent --show-error http://localhost:8000/static/css/main.css -o /dev/null
+          docker logs di
