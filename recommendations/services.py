@@ -196,7 +196,7 @@ def rank_products_for_category(
                 )
 
     # Query 1: Fetch all criteria for this category
-    criteria_list = order_criteria_tree(corder_criteria_tree(ategory.criteria.all()))
+    criteria_list = order_criteria_tree(category.criteria.all())
     top_level_criteria = [c for c in criteria_list if c.parent_id is None]
 
     # Query 2: Fetch all products in this category with overall average_score & review_count
